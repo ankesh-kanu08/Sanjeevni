@@ -39,13 +39,41 @@ const KEYWORD_MAP = {
   'chakkar': 'dizziness',
   'dizzy': 'dizziness',
   'dizziness': 'dizziness',
-  // Cough
+  // Cough & Sputum
   'khansi': 'cough',
   'cough': 'cough',
-  // Swelling
-  'soojan': 'swelling',
-  'swelling': 'swelling',
-  'sooj': 'swelling'
+  'balgam': 'phlegm',
+  'phlegm': 'phlegm',
+  'sputum': 'phlegm',
+  // Swelling / Pedal Edema
+  'soojan': 'pedal_edema',
+  'swelling': 'pedal_edema',
+  'sooj': 'pedal_edema',
+  'sujan': 'pedal_edema',
+  'edema': 'pedal_edema',
+  'pairo mein sujan': 'pedal_edema',
+  // Orthopnea
+  'letne par saans': 'orthopnea',
+  'lying flat': 'orthopnea',
+  'takiya': 'orthopnea',
+  'orthopnea': 'orthopnea',
+  // Palpitations
+  'dhadkan': 'palpitation',
+  'palpitation': 'palpitation',
+  'ghabrahat': 'palpitation',
+  // Surgical wound & stitches
+  'cheera': 'surgical_wound_pain',
+  'taanke': 'surgical_wound_pain',
+  'stitches': 'surgical_wound_pain',
+  'incision': 'surgical_wound_pain',
+  'mavad': 'wound_discharge',
+  'pus': 'wound_discharge',
+  'pani nikal': 'wound_discharge',
+  // Gastrointestinal
+  'ulti': 'vomiting',
+  'vomiting': 'vomiting',
+  'matli': 'nausea',
+  'nausea': 'nausea'
 };
 
 export const extractSymptomsClientSide = (text) => {

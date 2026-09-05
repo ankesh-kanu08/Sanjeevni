@@ -1,8 +1,9 @@
 import PatientCheckIn from '../models/PatientCheckIn.js';
 import Patient from '../models/Patient.js';
+import DischargeRecord from '../models/DischargeRecord.js';
 import { assessRisk } from '../services/riskService.js';
 import { addEvent } from '../services/timelineService.js';
-import { extractSymptoms } from '../services/nlpService.js';
+import { extractSymptoms, fetchCheckInProtocol } from '../services/nlpService.js';
 
 export const submitCheckIn = async (req, res, next) => {
   try {
@@ -97,6 +98,70 @@ export const getCheckIns = async (req, res, next) => {
     }
     const checkins = await PatientCheckIn.find({ patient: patientId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: checkins });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCheckInProtocol = async (req, res, next) => {
+  try {
+    let patientId = req.params.id;
+    let patient = null;
+
+    if (patientId && patientId !== 'me' && patientId !== 'undefined' && patientId !== 'null') {
+      try {
+        patient = await Patient.findById(patientId).populate('user', 'name');
+      } catch (e) {}
+    }
+
+    if (!patient && req.user) {
+      patient = await Patient.findOne({ user: req.user._id }).populate('user', 'name');
+    }
+
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+
+    let diagnosis = patient.diagnosis;
+    if (!diagnosis) {
+      const dischargeRec = await DischargeRecord.findOne({ patient: patient._id }).sort({ createdAt: -1 });
+      if (dischargeRec) diagnosis = dischargeRec.diagnosis;
+    }
+
+    const patientName = patient.user?.name || 'मरीज';
+    let protocol = await fetchCheckInProtocol(diagnosis, patientName, patient.comorbidities || []);
+
+    if (!protocol) {
+      let fallbackCategory = 'GENERAL';
+      let protocolName = 'Standard Post-Discharge Recovery Protocol';
+      const text = `${diagnosis || ''} ${(patient.comorbidities || []).join(' ')}`.toLowerCase();
+
+      if (/(pneumonia|copd|asthma|bronchitis|pulmonary|lung|respiratory|dyspnea|swas)/.test(text)) {
+        fallbackCategory = 'RESPIRATORY';
+        protocolName = 'Respiratory & Pneumonia Care Protocol';
+      } else if (/(heart|cardiac|chf|congestive|failure|hypertension|bp|infarction|mi|angina|cad)/.test(text)) {
+        fallbackCategory = 'CARDIAC';
+        protocolName = 'Congestive Heart Failure & Cardiovascular Protocol';
+      } else if (/(post|surgery|surgical|cholecystectomy|appendectomy|hernia|laparoscopic|operation)/.test(text)) {
+        fallbackCategory = 'POST_SURGICAL';
+        protocolName = 'Post-Surgical & Wound Recovery Protocol';
+      } else if (/(diabetes|diabetic|sugar|ckd|renal|kidney)/.test(text)) {
+        fallbackCategory = 'METABOLIC_RENAL';
+        protocolName = 'Metabolic & Renal Care Protocol';
+      }
+
+      protocol = {
+        disease_category: fallbackCategory,
+        diagnosis: diagnosis || 'General Medical',
+        protocol_name: protocolName,
+        questions: []
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      data: protocol
+    });
   } catch (error) {
     next(error);
   }

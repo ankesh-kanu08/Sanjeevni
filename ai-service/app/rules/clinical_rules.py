@@ -14,8 +14,12 @@ class ClinicalSafetyRules:
     ]
     
     SYMPTOM_RULES = [
-        (['severe_breathlessness', 'chest_pain', 'confusion', 'unresponsive'], 'HIGH', 'Potentially critical symptom reported'),
+        (['severe_breathlessness', 'chest_pain', 'confusion', 'unresponsive'], 'HIGH', 'Critical cardiopulmonary symptom reported'),
+        (['wound_discharge'], 'HIGH', 'Surgical wound discharge / suspected infection reported'),
         (['increased_breathlessness', 'worsening_breathlessness', 'breathlessness_worsening', 'shortness_of_breath_worsening'], 'MEDIUM', 'Breathlessness worsening reported'),
+        (['pedal_edema', 'orthopnea'], 'MEDIUM', 'Cardiovascular fluid overload / pedal edema reported'),
+        (['palpitation'], 'MEDIUM', 'Cardiac palpitations / tachycardia reported'),
+        (['surgical_wound_pain'], 'MEDIUM', 'Persistent surgical site discomfort reported'),
     ]
     
     def evaluate(self, current_vitals: Any, deviations: List[Any], symptoms: List[str]) -> Dict[str, Any]:

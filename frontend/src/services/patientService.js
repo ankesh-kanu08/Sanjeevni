@@ -40,6 +40,10 @@ const patientService = {
   submitVitals: async (id, data) => {
     const response = await api.post(`/patients/${id}/vitals`, data);
     return response.data;
+  },
+  getCheckInProtocol: async (id) => {
+    const response = await api.get(`/patients/${id || 'me'}/checkin-protocol`);
+    return response.data;
   }
 };
 

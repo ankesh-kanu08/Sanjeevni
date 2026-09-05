@@ -53,3 +53,22 @@ class ExtractedSymptom(BaseModel):
 
 class SymptomExtractionResponse(BaseModel):
     symptoms: List[ExtractedSymptom]
+
+class CheckInQuestion(BaseModel):
+    id: str
+    category: str
+    text_hi: str
+    text_en: str
+    criticality: Optional[str] = "routine"
+    expected_symptoms: Optional[List[str]] = []
+
+class DiseaseQuestionProtocolRequest(BaseModel):
+    diagnosis: str
+    patient_name: Optional[str] = "मरीज"
+    comorbidities: Optional[List[str]] = []
+
+class DiseaseQuestionProtocolResponse(BaseModel):
+    disease_category: str
+    diagnosis: str
+    protocol_name: str
+    questions: List[CheckInQuestion]

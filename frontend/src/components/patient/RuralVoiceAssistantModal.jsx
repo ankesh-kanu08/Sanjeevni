@@ -68,49 +68,343 @@ const LOCALIZED_STRINGS = {
   }
 };
 
-// Structured question templates with unique IDs
-const getQuestionsBank = (patientName) => ({
-  q_001_greeting: {
-    id: 'q_001_greeting',
-    category: 'greeting',
-    text: {
-      hi: `नमस्ते ${patientName || 'मरीज'} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपकी तबीयत कैसी लग रही है? कृपया बोल कर बताएं।`,
-      en: `Hello ${patientName || 'Patient'}. I am your Sanjeevni care companion. How are you feeling today? Please speak after the prompt.`
-    }
-  },
-  q_002_breathlessness: {
-    id: 'q_002_breathlessness',
-    category: 'breathlessness',
-    text: {
-      hi: 'क्या आपको सांस लेने में तकलीफ हो रही है, या चलने फिरने पर सांस फूल रही है?',
-      en: 'Are you experiencing any shortness of breath, breathing difficulty, or chest tightness?'
-    }
-  },
-  q_003_worsening: {
-    id: 'q_003_worsening',
-    category: 'trend',
-    text: {
-      hi: 'क्या यह तकलीफ या कमजोरी कल के मुकाबले ज्यादा बढ़ गई है?',
-      en: 'Has this discomfort or weakness become worse compared to yesterday?'
-    }
-  },
-  q_004_medication: {
-    id: 'q_004_medication',
-    category: 'medication',
-    text: {
-      hi: 'क्या आपने आज अपनी डॉक्टर द्वारा दी गई सभी दवाइयाँ समय पर ली हैं?',
-      en: 'Did you take all your prescribed medicines on time today?'
-    }
-  },
-  q_005_closing: {
-    id: 'q_005_closing',
-    category: 'closing',
-    text: {
-      hi: 'धन्यवाद। आपकी संपूर्ण स्वास्थ्य जानकारी दर्ज कर ली गई है और डॉक्टर व स्वास्थ्य टीम को भेज दी गई है। आप कृपया आराम करें।',
-      en: 'Thank you. Your health update has been recorded and shared with your clinical team. Please rest well.'
-    }
+// Disease Category Classifier
+export const classifyDiseaseCategory = (diagnosis, comorbidities = []) => {
+  const text = `${diagnosis || ''} ${(comorbidities || []).join(' ')}`.toLowerCase();
+  if (/(pneumonia|copd|asthma|bronchitis|pulmonary|lung|respiratory|dyspnea|swas|infiltrate)/.test(text)) {
+    return 'RESPIRATORY';
   }
-});
+  if (/(heart|cardiac|chf|congestive|failure|hypertension|bp|infarction|mi|angina|cad|coronary|arrhythmia|edema)/.test(text)) {
+    return 'CARDIAC';
+  }
+  if (/(post|surgery|surgical|cholecystectomy|appendectomy|hernia|laparoscopic|operation|incision|wound|stitches|resection)/.test(text)) {
+    return 'POST_SURGICAL';
+  }
+  if (/(diabetes|diabetic|sugar|ckd|renal|kidney|nephro)/.test(text)) {
+    return 'METABOLIC_RENAL';
+  }
+  return 'GENERAL';
+};
+
+// Trained Disease-Specific Clinical Question Protocols
+export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '', comorbidities = []) => {
+  const category = classifyDiseaseCategory(diagnosis, comorbidities);
+  const name = patientName || 'मरीज';
+
+  if (category === 'RESPIRATORY') {
+    const questions = {
+      resp_001_greeting: {
+        id: 'resp_001_greeting',
+        category: 'greeting',
+        text: {
+          hi: `नमस्ते ${name} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपके फेफड़ों और सांस की तबीयत कैसी लग रही है? कृपया बोल कर बताएं।`,
+          en: `Hello ${name}. I am your Sanjeevni care companion. How are you feeling today with your breathing and chest?`
+        }
+      },
+      resp_002_breathlessness: {
+        id: 'resp_002_breathlessness',
+        category: 'breathlessness',
+        text: {
+          hi: 'क्या आपको सांस लेने में कोई तकलीफ हो रही है, या थोड़ा भी चलने-फिरने पर सांस फूल रही है?',
+          en: 'Are you experiencing any shortness of breath, difficulty breathing, or does your breath get heavy when walking?'
+        }
+      },
+      resp_003_cough_phlegm: {
+        id: 'resp_003_cough_phlegm',
+        category: 'cough_phlegm',
+        text: {
+          hi: 'क्या आपको खांसी आ रही है, बलगम का रंग पीला या हरा है, या सीने में सांस लेते समय दर्द महसूस हो रहा है?',
+          en: 'Do you have a cough, yellowish or greenish phlegm, or any chest pain when breathing in?'
+        }
+      },
+      resp_004_fever_vitals: {
+        id: 'resp_004_fever_vitals',
+        category: 'fever_vitals',
+        text: {
+          hi: 'क्या आपको बुखार या कंपकंपी महसूस हो रही है, और क्या आपने आज पल्स ऑक्सीमीटर से ऑक्सीजन (SpO₂) चेक किया है?',
+          en: 'Do you feel any fever or chills, and have you measured your oxygen (SpO₂) level with a pulse oximeter today?'
+        }
+      },
+      resp_005_medication: {
+        id: 'resp_005_medication',
+        category: 'medication',
+        text: {
+          hi: 'क्या आपने आज डॉक्टर द्वारा दी गई सभी एंटीबायोटिक और सांस की दवाइयाँ समय पर ले ली हैं?',
+          en: 'Did you take all your prescribed respiratory medications and antibiotics on time today?'
+        }
+      },
+      resp_006_closing: {
+        id: 'resp_006_closing',
+        category: 'closing',
+        text: {
+          hi: 'धन्यवाद। आपकी सांस और फेफड़ों की संपूर्ण स्थिति दर्ज कर ली गई है और डॉक्टर व स्वास्थ्य टीम को भेज दी गई है। आप कृपया आराम करें।',
+          en: 'Thank you. Your respiratory health data has been recorded and shared with your clinical team. Please rest well.'
+        }
+      }
+    };
+    return {
+      category: 'RESPIRATORY',
+      diagnosis: diagnosis || 'Pneumonia / Respiratory',
+      protocolName: {
+        hi: 'निमोनिया एवं श्वसन जांच (Respiratory Protocol)',
+        en: 'Pneumonia & Respiratory Protocol'
+      },
+      questionIds: ['resp_001_greeting', 'resp_002_breathlessness', 'resp_003_cough_phlegm', 'resp_004_fever_vitals', 'resp_005_medication', 'resp_006_closing'],
+      questionsBank: questions
+    };
+  }
+
+  if (category === 'CARDIAC') {
+    const questions = {
+      card_001_greeting: {
+        id: 'card_001_greeting',
+        category: 'greeting',
+        text: {
+          hi: `नमस्ते ${name} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपके दिल और शरीर की तबीयत कैसी लग रही है? कृपया बोल कर बताएं।`,
+          en: `Hello ${name}. I am your Sanjeevni care companion. How are you feeling today with your heart and energy?`
+        }
+      },
+      card_002_edema: {
+        id: 'card_002_edema',
+        category: 'pedal_edema',
+        text: {
+          hi: 'क्या आज आपने अपने दोनों पैरों, पंजों या टखनों में कोई सूजन या भारीपन देखा है?',
+          en: 'Have you noticed any swelling, puffiness, or heaviness in your feet, ankles, or legs today?'
+        }
+      },
+      card_003_orthopnea: {
+        id: 'card_003_orthopnea',
+        category: 'orthopnea',
+        text: {
+          hi: 'क्या आपको बिस्तर पर सीधे लेटते समय सांस लेने में तकलीफ होती है, या रात में सोने के लिए तकिया ऊंचा करना पड़ता है?',
+          en: 'Do you feel breathless when lying flat in bed, or do you need extra pillows to breathe easily at night?'
+        }
+      },
+      card_004_vitals_palpitation: {
+        id: 'card_004_vitals_palpitation',
+        category: 'vitals_palpitation',
+        text: {
+          hi: 'क्या आपको सीने में भारीपन, दिल की धड़कन तेज होना या चक्कर जैसा लग रहा है, और क्या ब्लड प्रेशर नापा है?',
+          en: 'Are you experiencing any chest heaviness, rapid heartbeat, or dizziness, and did you check your blood pressure?'
+        }
+      },
+      card_005_medication_fluids: {
+        id: 'card_005_medication_fluids',
+        category: 'medication_fluids',
+        text: {
+          hi: 'क्या आपने अपनी पेशाब बढ़ाने वाली (डाययूरेटिक) और ब्लड प्रेशर की सभी दवाइयाँ समय पर ली हैं, और पानी सीमित रखा है?',
+          en: 'Did you take all your prescribed heart, blood pressure, and diuretic medicines on time, and follow your fluid limits?'
+        }
+      },
+      card_006_closing: {
+        id: 'card_006_closing',
+        category: 'closing',
+        text: {
+          hi: 'धन्यवाद। आपके हृदय स्वास्थ्य और सूजन की जानकारी दर्ज कर ली गई है और डॉक्टर व आशा कार्यकर्ता को भेज दी गई है। कृपया आराम करें।',
+          en: 'Thank you. Your cardiac health and fluid status have been recorded and sent to your doctor and care team. Please rest comfortably.'
+        }
+      }
+    };
+    return {
+      category: 'CARDIAC',
+      diagnosis: diagnosis || 'Congestive Heart Failure',
+      protocolName: {
+        hi: 'हृदय विफलता एवं सूजन जांच (Cardiac Protocol)',
+        en: 'Heart Failure & Cardiac Protocol'
+      },
+      questionIds: ['card_001_greeting', 'card_002_edema', 'card_003_orthopnea', 'card_004_vitals_palpitation', 'card_005_medication_fluids', 'card_006_closing'],
+      questionsBank: questions
+    };
+  }
+
+  if (category === 'POST_SURGICAL') {
+    const questions = {
+      surg_001_greeting: {
+        id: 'surg_001_greeting',
+        category: 'greeting',
+        text: {
+          hi: `नमस्ते ${name} जी। मैं आपकी संजीवनी केयर साथी हूँ। ऑपरेशन के बाद आज आपकी तबीयत और ताकत कैसी लग रही है? बोल कर बताएं।`,
+          en: `Hello ${name}. I am your Sanjeevni care companion. How is your recovery and strength feeling today after your surgery?`
+        }
+      },
+      surg_002_incision_pain: {
+        id: 'surg_002_incision_pain',
+        category: 'incision_pain',
+        text: {
+          hi: 'क्या ऑपरेशन के चीरे या टांकों की जगह तेज दर्द, लालिमा, सूजन, या कोई पानी या मवाद बह रहा है?',
+          en: 'Is there any severe pain, redness, swelling, or any watery or pus discharge from your surgical incision stitches?'
+        }
+      },
+      surg_003_fever: {
+        id: 'surg_003_fever',
+        category: 'fever',
+        text: {
+          hi: 'क्या आपको कंपकंपी के साथ बुखार लग रहा है, या शरीर गर्म महसूस हो रहा है?',
+          en: 'Do you have any fever, chills, or does your body feel unusually hot or clammy?'
+        }
+      },
+      surg_004_diet_bowel: {
+        id: 'surg_004_diet_bowel',
+        category: 'diet_bowel',
+        text: {
+          hi: 'क्या आप हल्का खाना खा पा रहे हैं, उल्टी या मतली तो नहीं है, और क्या पेट साफ हो रहा है?',
+          en: 'Are you able to eat soft food, is there any nausea or vomiting, and are your bowel movements normal?'
+        }
+      },
+      surg_005_medication: {
+        id: 'surg_005_medication',
+        category: 'medication',
+        text: {
+          hi: 'क्या आपने अपने ऑपरेशन के बाद दी गई एंटीबायोटिक और दर्द निवारक दवाइयाँ समय पर ली हैं?',
+          en: 'Did you take your prescribed post-surgical antibiotics and pain medications on time today?'
+        }
+      },
+      surg_006_closing: {
+        id: 'surg_006_closing',
+        category: 'closing',
+        text: {
+          hi: 'धन्यवाद। आपकी सर्जरी के बाद की स्थिति दर्ज कर ली गई है और सर्जिकल टीम को भेज दी गई है। चीरे को सूखा रखें और आराम करें।',
+          en: 'Thank you. Your post-surgical recovery details have been recorded and shared with your surgical team. Please rest well.'
+        }
+      }
+    };
+    return {
+      category: 'POST_SURGICAL',
+      diagnosis: diagnosis || 'Post-Surgical Recovery',
+      protocolName: {
+        hi: 'सर्जरी पश्चात स्वास्थ्य एवं टांका जांच (Post-Surgical Protocol)',
+        en: 'Post-Surgical & Wound Protocol'
+      },
+      questionIds: ['surg_001_greeting', 'surg_002_incision_pain', 'surg_003_fever', 'surg_004_diet_bowel', 'surg_005_medication', 'surg_006_closing'],
+      questionsBank: questions
+    };
+  }
+
+  if (category === 'METABOLIC_RENAL') {
+    const questions = {
+      meta_001_greeting: {
+        id: 'meta_001_greeting',
+        category: 'greeting',
+        text: {
+          hi: `नमस्ते ${name} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपकी सेहत और कमजोरी कैसी लग रही है? कृपया बताएं।`,
+          en: `Hello ${name}. I am your Sanjeevni care companion. How are you feeling today regarding your overall energy and health?`
+        }
+      },
+      meta_002_hypoglycemia_dizziness: {
+        id: 'meta_002_hypoglycemia_dizziness',
+        category: 'hypoglycemia_dizziness',
+        text: {
+          hi: 'क्या आपको चक्कर आना, आंखों के आगे अंधेरा, कंपकंपी, या बहुत ज्यादा पसीना या प्यास महसूस हो रही है?',
+          en: 'Are you experiencing any dizziness, blurred vision, trembling, profuse sweating, or excessive thirst?'
+        }
+      },
+      meta_003_feet_wounds: {
+        id: 'meta_003_feet_wounds',
+        category: 'feet_wounds',
+        text: {
+          hi: 'क्या आपके पैरों या तलवों में कोई नया घाव, छाला, सुन्नपन या सूजन देखी है आपने?',
+          en: 'Have you noticed any new cuts, blisters, numbness, or swelling in your feet or legs?'
+        }
+      },
+      meta_004_vitals_urination: {
+        id: 'meta_004_vitals_urination',
+        category: 'urination_vitals',
+        text: {
+          hi: 'क्या पेशाब की मात्रा या रंग में कोई बदलाव है, और क्या आपने अपना ब्लड शुगर या ब्लड प्रेशर चेक किया?',
+          en: 'Is there any change in your urination frequency, and did you check your blood sugar or blood pressure today?'
+        }
+      },
+      meta_005_medication: {
+        id: 'meta_005_medication',
+        category: 'medication',
+        text: {
+          hi: 'क्या आपने इंसुलिन या डॉक्टर द्वारा दी गई शुगर और बीपी की दवाइयाँ खाने के साथ समय पर ली हैं?',
+          en: 'Did you take all your insulin doses and prescribed diabetic and BP medicines on time with meals?'
+        }
+      },
+      meta_006_closing: {
+        id: 'meta_006_closing',
+        category: 'closing',
+        text: {
+          hi: 'धन्यवाद। आपकी शुगर और स्वास्थ्य की जानकारी दर्ज कर ली गई है और डॉक्टर को भेज दी गई है। कृपया समय पर आहार लें।',
+          en: 'Thank you. Your metabolic health update has been recorded and forwarded to your doctor. Please maintain your diet.'
+        }
+      }
+    };
+    return {
+      category: 'METABOLIC_RENAL',
+      diagnosis: diagnosis || 'Diabetes & Metabolic Care',
+      protocolName: {
+        hi: 'मधुमेह एवं मेटाबॉलिक जांच (Metabolic Protocol)',
+        en: 'Diabetes & Metabolic Care Protocol'
+      },
+      questionIds: ['meta_001_greeting', 'meta_002_hypoglycemia_dizziness', 'meta_003_feet_wounds', 'meta_004_vitals_urination', 'meta_005_medication', 'meta_006_closing'],
+      questionsBank: questions
+    };
+  }
+
+  // DEFAULT / GENERAL
+  const questions = {
+    gen_001_greeting: {
+      id: 'gen_001_greeting',
+      category: 'greeting',
+      text: {
+        hi: `नमस्ते ${name} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज अस्पताल से छुट्टी के बाद आपकी तबीयत कैसी लग रही है? बोल कर बताएं।`,
+        en: `Hello ${name}. I am your Sanjeevni care companion. How are you feeling today following your hospital discharge?`
+      }
+    },
+    gen_002_breathlessness: {
+      id: 'gen_002_breathlessness',
+      category: 'breathlessness',
+      text: {
+        hi: 'क्या आपको सांस लेने में कोई तकलीफ हो रही है, या चलने फिरने पर सांस फूल रही है?',
+        en: 'Are you experiencing any shortness of breath, breathing difficulty, or chest tightness?'
+      }
+    },
+    gen_003_fever_pain: {
+      id: 'gen_003_fever_pain',
+      category: 'fever_pain',
+      text: {
+        hi: 'क्या आपको बुखार, शरीर में तेज दर्द या कोई नई शारीरिक परेशानी महसूस हो रही है?',
+        en: 'Do you have any fever, severe body pain, or any new symptoms since discharge?'
+      }
+    },
+    gen_004_worsening: {
+      id: 'gen_004_worsening',
+      category: 'trend',
+      text: {
+        hi: 'क्या यह तकलीफ या कमजोरी कल के मुकाबले ज्यादा बढ़ गई है?',
+        en: 'Has this discomfort or weakness become worse compared to yesterday?'
+      }
+    },
+    gen_005_medication: {
+      id: 'gen_005_medication',
+      category: 'medication',
+      text: {
+        hi: 'क्या आपने आज अपने डॉक्टर द्वारा दी गई सभी दवाइयाँ समय पर ले ली हैं?',
+        en: 'Did you take all your prescribed medicines on time today?'
+      }
+    },
+    gen_006_closing: {
+      id: 'gen_006_closing',
+      category: 'closing',
+      text: {
+        hi: 'धन्यवाद। आपकी संपूर्ण स्वास्थ्य जानकारी दर्ज कर ली गई है और डॉक्टर व स्वास्थ्य टीम को भेज दी गई है। आप कृपया आराम करें।',
+        en: 'Thank you. Your health update has been recorded and shared with your clinical team. Please rest well.'
+      }
+    }
+  };
+  return {
+    category: 'GENERAL',
+    diagnosis: diagnosis || 'General Medical Recovery',
+    protocolName: {
+      hi: 'सामान्य स्वास्थ्य देखभाल जांच (Standard Protocol)',
+      en: 'Standard Post-Discharge Recovery Protocol'
+    },
+    questionIds: ['gen_001_greeting', 'gen_002_breathlessness', 'gen_003_fever_pain', 'gen_004_worsening', 'gen_005_medication', 'gen_006_closing'],
+    questionsBank: questions
+  };
+};
 
 export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onCompleted }) {
   // Session level language state: 'hi' | 'en'
@@ -146,8 +440,11 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
   const chatScrollRef = useRef(null);
 
   const patientName = patient?.user?.name || patient?.name || 'मरीज';
+  const diagnosis = patient?.diagnosis || patient?.dischargeRecord?.diagnosis || '';
+  const comorbidities = patient?.comorbidities || [];
   const localized = LOCALIZED_STRINGS[selectedLanguage] || LOCALIZED_STRINGS.hi;
-  const questionsBank = getQuestionsBank(patientName);
+  const activeProtocol = getDiseaseProtocol(patientName, diagnosis, comorbidities);
+  const questionsBank = activeProtocol.questionsBank;
 
   // Auto-scroll conversation
   useEffect(() => {
@@ -459,20 +756,13 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
         return;
       }
 
-      // 2. Select next adaptive question
-      let nextQuestionKey = null;
-      if (!currentQuestionIdRef.current) {
-        nextQuestionKey = 'q_001_greeting';
-      } else if (currentQuestionIdRef.current === 'q_001_greeting') {
-        nextQuestionKey = 'q_002_breathlessness';
-      } else if (currentQuestionIdRef.current === 'q_002_breathlessness') {
-        const hasBreathless = updatedSymptoms.some(s => s.name === 'breathlessness');
-        nextQuestionKey = hasBreathless ? 'q_003_worsening' : 'q_004_medication';
-      } else if (currentQuestionIdRef.current === 'q_003_worsening') {
-        nextQuestionKey = 'q_004_medication';
-      } else if (currentQuestionIdRef.current === 'q_004_medication') {
-        nextQuestionKey = 'q_005_closing';
-      }
+      // 2. Select next adaptive question from the disease-specific protocol sequence
+      const questionSequence = activeProtocol.questionIds;
+      const currentIndex = currentQuestionIdRef.current
+        ? questionSequence.indexOf(currentQuestionIdRef.current)
+        : -1;
+
+      const nextQuestionKey = questionSequence[currentIndex + 1];
 
       // If all questions are done, finalize
       if (!nextQuestionKey) {
@@ -522,7 +812,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       }
 
       // If closing question was spoken, auto-finalize session
-      if (nextQuestion.id === 'q_005_closing') {
+      if (nextQuestion.category === 'closing' || nextQuestion.id.endsWith('_closing') || nextQuestion.id === 'q_005_closing') {
         await finalizeCheckIn(currentMessages, updatedSymptoms, updatedMeds, updatedMood);
         return;
       }
@@ -781,6 +1071,19 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
               <X size={20} />
             </button>
           </div>
+        </div>
+
+        {/* Disease Protocol Banner */}
+        <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-teal-100 flex items-center justify-between text-xs shrink-0">
+          <div className="flex items-center gap-2 font-bold text-teal-900">
+            <span className="p-1 bg-white rounded-md shadow-2xs text-teal-700 text-xs">🩺</span>
+            <span className="truncate max-w-[280px] sm:max-w-none">
+              {activeProtocol.protocolName[selectedLanguage] || activeProtocol.protocolName.hi}
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-teal-100/90 text-teal-800 border border-teal-200/80 shrink-0">
+            {activeProtocol.diagnosis}
+          </span>
         </div>
 
         {/* Scrollable Center Body */}

@@ -1,10 +1,12 @@
 import Alert from '../models/Alert.js';
-import { emitAlert } from '../sockets/index.js';
+import RiskAssessment from '../models/RiskAssessment.js';
+import { emitAlert, emitAlertUpdate } from '../sockets/index.js';
 
 export const createAlert = async (data) => {
   const alert = await Alert.create(data);
   const populated = await Alert.findById(alert._id)
-    .populate({ path: 'patient', populate: { path: 'user', select: 'name' } });
+    .populate({ path: 'patient', populate: { path: 'user', select: 'name email phone' } })
+    .populate('relatedAssessment');
 
   const alertPayload = populated ? populated.toObject() : alert.toObject();
   emitAlert(data.targetUser, data.targetRole, alertPayload);
@@ -17,14 +19,35 @@ export const getAlerts = async (userId, role, filters = {}) => {
     ...filters
   };
   return await Alert.find(query)
-    .populate({ path: 'patient', populate: { path: 'user', select: 'name' } })
+    .populate({ path: 'patient', populate: { path: 'user', select: 'name email phone' } })
+    .populate('relatedAssessment')
     .sort({ createdAt: -1 });
 };
 
 export const markAsRead = async (alertId) => {
-  return await Alert.findByIdAndUpdate(alertId, { isRead: true }, { new: true });
+  const alert = await Alert.findByIdAndUpdate(
+    alertId,
+    { isRead: true, status: 'READ' },
+    { new: true }
+  ).populate({ path: 'patient', populate: { path: 'user', select: 'name email phone' } })
+   .populate('relatedAssessment');
+
+  if (alert) {
+    emitAlertUpdate(alert.targetUser, alert.targetRole, alert);
+  }
+  return alert;
 };
 
 export const markAsActioned = async (alertId, action) => {
-  return await Alert.findByIdAndUpdate(alertId, { isActioned: true, actionTaken: action }, { new: true });
+  const alert = await Alert.findByIdAndUpdate(
+    alertId,
+    { isActioned: true, isRead: true, status: 'ACTIONED', actionTaken: action },
+    { new: true }
+  ).populate({ path: 'patient', populate: { path: 'user', select: 'name email phone' } })
+   .populate('relatedAssessment');
+
+  if (alert) {
+    emitAlertUpdate(alert.targetUser, alert.targetRole, alert);
+  }
+  return alert;
 };

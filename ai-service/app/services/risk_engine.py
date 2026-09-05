@@ -95,24 +95,33 @@ class RiskEngine:
         
         for dev in deviations:
             if dev.severity in ['moderate', 'severe']:
-                reasons.append(f"{dev.parameter.capitalize()} changed by {abs(dev.change)} {dev.unit} from baseline ({dev.severity})")
+                if dev.parameter == 'spo2':
+                    reasons.append(f"SpO₂ decreased {abs(int(dev.change))} points from personal baseline")
+                elif dev.parameter == 'heartRate':
+                    reasons.append(f"Heart rate increased {abs(int(dev.change))} bpm from personal baseline")
+                elif dev.parameter == 'temperature':
+                    reasons.append(f"Temperature increased {abs(dev.change):.1f}°F from personal baseline")
+                elif dev.parameter == 'systolic_bp':
+                    reasons.append(f"Blood pressure changed {abs(int(dev.change))} mmHg from personal baseline")
+                else:
+                    reasons.append(f"{dev.parameter.capitalize()} deviation detected from personal baseline")
                 
         reasons.extend(rules_result['reasons'])
         
         final_level = "LOW"
         if final_score >= 70:
             final_level = "HIGH"
-        elif final_score >= 40:
+        elif final_score >= 38:
             final_level = "MEDIUM"
             
         if rules_result['risk_level'] == "HIGH":
             final_level = "HIGH"
-            final_score = max(final_score, 85.0)
+            final_score = max(final_score, 82.0)
         elif rules_result['risk_level'] == "MEDIUM" and final_level == "LOW":
             final_level = "MEDIUM"
-            final_score = max(final_score, 50.0)
+            final_score = max(final_score, 55.0)
             
-        final_score = min(final_score, 100.0)
+        final_score = round(min(final_score, 100.0))
         
         # Deduplicate reasons
         reasons = list(dict.fromkeys(reasons))
@@ -121,10 +130,10 @@ class RiskEngine:
 
     def _determine_workflow(self, risk_level: str) -> str:
         if risk_level == "HIGH":
-            return "immediate_escalation"
+            return "CLINICAL_REVIEW"
         elif risk_level == "MEDIUM":
-            return "schedule_teleconsult"
-        return "continue_routine_monitoring"
+            return "PHYSICAL_VERIFICATION"
+        return "CONTINUE_MONITORING"
 
     def analyze(self, request: RiskAnalysisRequest) -> RiskAnalysisResponse:
         deviations = self._calculate_baseline_deviations(request.baseline, request.current)

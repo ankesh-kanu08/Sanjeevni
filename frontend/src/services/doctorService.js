@@ -31,6 +31,10 @@ const doctorService = {
     const response = await api.put(`/doctor/alerts/${id}/read`);
     return unwrap(response);
   },
+  markAlertActioned: async (id, action) => {
+    const response = await api.put(`/doctor/alerts/${id}/action`, { action });
+    return unwrap(response);
+  },
   getStats: async () => {
     const response = await api.get('/doctor/stats');
     return unwrap(response) || {};

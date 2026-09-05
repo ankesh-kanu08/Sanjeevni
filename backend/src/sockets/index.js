@@ -87,18 +87,44 @@ export const emitAlert = (targetUserId, targetRole, alertData) => {
   if (targetUserId) {
     const userRoom = `user:${String(targetUserId)}`;
     ioInstance.to(userRoom).emit('new_alert', payload);
-    console.log(`Emitted alert to ${userRoom}: ${payload.title}`);
+    ioInstance.to(userRoom).emit('alert:created', payload);
+    ioInstance.to(userRoom).emit('alert', payload);
   }
 
   // Emit to target role (e.g. all doctors or workers)
   if (targetRole) {
     const roleRoom = `role:${targetRole}`;
     ioInstance.to(roleRoom).emit('new_alert', payload);
-    console.log(`Emitted alert to ${roleRoom}: ${payload.title}`);
+    ioInstance.to(roleRoom).emit('alert:created', payload);
+    ioInstance.to(roleRoom).emit('alert', payload);
   }
 
-  // Also notify admins
+  // Also notify broadcast and admins
+  ioInstance.to('broadcast_alerts').emit('new_alert', payload);
+  ioInstance.to('broadcast_alerts').emit('alert:created', payload);
   ioInstance.to('role:system_admin').emit('new_alert', payload);
+};
+
+/**
+ * Emit alert update event (e.g. mark as read or actioned)
+ */
+export const emitAlertUpdate = (targetUserId, targetRole, alertData) => {
+  if (!ioInstance) return;
+  const payload = {
+    ...alertData.toObject?.() || alertData,
+    timestamp: new Date().toISOString()
+  };
+
+  if (targetUserId) {
+    ioInstance.to(`user:${String(targetUserId)}`).emit('alert:updated', payload);
+    ioInstance.to(`user:${String(targetUserId)}`).emit('alert_updated', payload);
+  }
+  if (targetRole) {
+    ioInstance.to(`role:${targetRole}`).emit('alert:updated', payload);
+    ioInstance.to(`role:${targetRole}`).emit('alert_updated', payload);
+  }
+  ioInstance.to('broadcast_alerts').emit('alert:updated', payload);
+  ioInstance.to('broadcast_alerts').emit('alert_updated', payload);
 };
 
 /**
@@ -112,6 +138,7 @@ export const emitRiskUpdate = (patientId, riskData) => {
     timestamp: new Date().toISOString()
   };
   ioInstance.emit('risk_update', payload);
+  ioInstance.emit('risk:updated', payload);
   console.log(`Emitted risk_update for patient ${patientId}`);
 };
 

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Activity, X, Bell } from 'lucide-react';
 import AlertCard from '../../components/doctor/AlertCard';
 import DecisionForm from '../../components/doctor/DecisionForm';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorState from '../../components/common/ErrorState';
 import doctorService from '../../services/doctorService';
 import useSocket from '../../hooks/useSocket';
 import toast from 'react-hot-toast';
@@ -10,6 +12,7 @@ import toast from 'react-hot-toast';
 const DoctorAlerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('unread');
   const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
@@ -28,68 +31,79 @@ const DoctorAlerts = () => {
     };
     socket.on('alert', handleIncomingAlert);
     socket.on('new_alert', handleIncomingAlert);
+    socket.on('alert:created', handleIncomingAlert);
+    socket.on('alert:updated', handleIncomingAlert);
+    socket.on('alert_updated', handleIncomingAlert);
     return () => {
       socket.off('alert', handleIncomingAlert);
       socket.off('new_alert', handleIncomingAlert);
+      socket.off('alert:created', handleIncomingAlert);
+      socket.off('alert:updated', handleIncomingAlert);
+      socket.off('alert_updated', handleIncomingAlert);
     };
   }, [socket]);
 
   const fetchAlerts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await doctorService.getAlerts();
-      setAlerts(data);
+      setAlerts(data || []);
     } catch (error) {
-      console.warn("API Error, using fallback data");
-      setAlerts([
-        {
-          _id: '1', patient: { name: 'Rajesh Kumar', age: 65, _id: 'p1' }, riskLevel: 'HIGH',
-          title: 'Abnormal SpO2 Drop', message: 'Patient oxygen saturation dropped below 90% repeatedly during night.',
-          reasons: ['SpO2 avg 88% over last 4 hours'], isRead: false, createdAt: new Date().toISOString()
-        },
-        {
-          _id: '2', patient: { name: 'Sunita Sharma', age: 58, _id: 'p2' }, riskLevel: 'MEDIUM',
-          title: 'Missed Check-in', message: 'Patient has missed 2 consecutive daily check-ins.',
-          reasons: ['Missed check-in'], isRead: false, createdAt: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          _id: '3', patient: { name: 'Amit Patel', age: 45, _id: 'p3' }, riskLevel: 'LOW',
-          title: 'Routine Assessment Complete', message: 'Health worker completed routine assessment. No abnormalities.',
-          reasons: [], isRead: true, createdAt: new Date(Date.now() - 172800000).toISOString()
-        }
-      ]);
+      console.error("API Error fetching alerts:", error);
+      setError("Could not load clinical alerts from the server. Please try again.");
+      toast.error("Could not fetch alerts.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleReviewPatient = (alert) => {
-    navigate(`/doctor/patient/${alert.patient._id}`);
+    const pId = alert.patient?._id || alert.patient;
+    if (pId) {
+      navigate(`/doctor/patient/${pId}`);
+    }
   };
 
   const handleMarkRead = async (id) => {
     try {
       await doctorService.markAlertRead(id);
-      setAlerts(alerts.map(a => a._id === id ? { ...a, isRead: true } : a));
+      setAlerts(alerts.map(a => a._id === id ? { ...a, isRead: true, status: a.status === 'UNREAD' ? 'READ' : a.status } : a));
       toast.success('Alert marked as read');
     } catch (error) {
-      setAlerts(alerts.map(a => a._id === id ? { ...a, isRead: true } : a));
-      toast.success('Alert marked as read (Offline)');
+      toast.error('Failed to update alert');
+    }
+  };
+
+  const handleMarkActioned = async (id) => {
+    try {
+      await doctorService.markAlertActioned(id, 'Reviewed and actioned by Doctor');
+      setAlerts(alerts.map(a => a._id === id ? { ...a, isActioned: true, status: 'ACTIONED', isRead: true } : a));
+      toast.success('Alert marked as actioned');
+    } catch (error) {
+      toast.error('Failed to mark alert as actioned');
     }
   };
 
   const handleQuickDecisionSubmit = async (formData) => {
     try {
+      if (selectedAlert?.patient?._id) {
+        await doctorService.submitDecision({
+          patientId: selectedAlert.patient._id,
+          alertId: selectedAlert._id,
+          ...formData
+        });
+      }
       toast.success('Decision recorded successfully');
       setShowDecisionModal(false);
-      handleMarkRead(selectedAlert._id);
+      handleMarkActioned(selectedAlert._id);
     } catch (error) {
       toast.error('Failed to record decision');
     }
   };
 
-  const unreadAlerts = alerts.filter(a => !a.isRead);
-  const actionedAlerts = alerts.filter(a => a.isRead);
+  const unreadAlerts = alerts.filter(a => !a.isActioned && a.status !== 'ACTIONED');
+  const actionedAlerts = alerts.filter(a => a.isActioned || a.status === 'ACTIONED');
 
   const getFilteredAlerts = () => {
     switch (activeTab) {
@@ -102,7 +116,23 @@ const DoctorAlerts = () => {
   const filteredAlerts = getFilteredAlerts();
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64"><Activity className="animate-spin text-teal-600" size={32} /></div>;
+    return (
+      <div className="py-20 flex justify-center">
+        <LoadingSpinner message="Loading clinical alerts..." />
+      </div>
+    );
+  }
+
+  if (error && !alerts.length) {
+    return (
+      <div className="py-12">
+        <ErrorState 
+          title="Unable to load alerts"
+          message={error} 
+          onRetry={fetchAlerts} 
+        />
+      </div>
+    );
   }
 
   return (
@@ -151,6 +181,7 @@ const DoctorAlerts = () => {
                 alert={alert} 
                 onReview={handleReviewPatient} 
                 onMarkRead={handleMarkRead} 
+                onMarkActioned={handleMarkActioned}
               />
               {!alert.isRead && (
                 <button 

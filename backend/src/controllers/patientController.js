@@ -5,6 +5,10 @@ import VitalMeasurement from '../models/VitalMeasurement.js';
 import { getRiskHistory } from '../services/riskService.js';
 import { getBaseline } from '../services/baselineService.js';
 
+import DischargeRecord from '../models/DischargeRecord.js';
+import Baseline from '../models/Baseline.js';
+import RiskAssessment from '../models/RiskAssessment.js';
+
 /**
  * Get the patient record for the currently logged-in patient user
  */
@@ -14,9 +18,21 @@ export const getMyPatientRecord = async (req, res, next) => {
       .populate('user', 'name email phone')
       .populate('hospital', 'name')
       .populate('assignedDoctor', 'name')
-      .populate('assignedWorker', 'name');
+      .populate('assignedWorker', 'name')
+      .populate('latestAssessment');
     if (!patient) return res.status(404).json({ success: false, message: 'No patient record found for this user' });
-    res.status(200).json({ success: true, data: patient });
+
+    const p = patient.toObject();
+    if (!p.dischargeDate || !p.followUpDate) {
+      const dischargeRec = await DischargeRecord.findOne({ patient: p._id }).sort({ createdAt: -1 });
+      if (dischargeRec) {
+        if (!p.dischargeDate) p.dischargeDate = dischargeRec.createdAt || dischargeRec.dischargeDate;
+        if (!p.followUpDate) p.followUpDate = dischargeRec.followUpDate;
+        if (!p.diagnosis) p.diagnosis = dischargeRec.diagnosis;
+      }
+    }
+
+    res.status(200).json({ success: true, data: p });
   } catch (error) {
     next(error);
   }
@@ -44,8 +60,22 @@ export const getPatients = async (req, res, next) => {
     let query = {};
     if (req.user.role === 'doctor') query.assignedDoctor = req.user._id;
     if (req.user.role === 'worker') query.assignedWorker = req.user._id;
-    const patients = await Patient.find(query).populate('user', 'name email phone').populate('assignedDoctor', 'name').populate('assignedWorker', 'name');
-    res.status(200).json({ success: true, data: patients });
+    const patients = await Patient.find(query)
+      .populate('user', 'name email phone')
+      .populate('assignedDoctor', 'name')
+      .populate('assignedWorker', 'name')
+      .populate('latestAssessment');
+
+    const formatted = patients.map(p => {
+      const doc = p.toObject();
+      return {
+        ...doc,
+        riskLevel: doc.currentRiskLevel || 'LOW',
+        riskScore: doc.currentRiskScore || 0
+      };
+    });
+
+    res.status(200).json({ success: true, data: formatted });
   } catch (error) {
     next(error);
   }
@@ -56,9 +86,28 @@ export const getPatients = async (req, res, next) => {
  */
 export const getPatientById = async (req, res, next) => {
   try {
-    const patient = await Patient.findById(req.params.id).populate('user', 'name email phone').populate('hospital').populate('assignedDoctor').populate('assignedWorker');
+    const patient = await Patient.findById(req.params.id)
+      .populate('user', 'name email phone')
+      .populate('hospital')
+      .populate('assignedDoctor')
+      .populate('assignedWorker')
+      .populate('latestAssessment');
+
     if (!patient) return res.status(404).json({ success: false, message: 'Patient not found' });
-    res.status(200).json({ success: true, data: patient });
+
+    const p = patient.toObject();
+
+    // Resilient discharge lifecycle resolution
+    if (!p.dischargeDate || !p.followUpDate || !p.diagnosis) {
+      const dischargeRec = await DischargeRecord.findOne({ patient: p._id }).sort({ createdAt: -1 });
+      if (dischargeRec) {
+        if (!p.dischargeDate) p.dischargeDate = dischargeRec.createdAt || dischargeRec.dischargeDate;
+        if (!p.followUpDate) p.followUpDate = dischargeRec.followUpDate;
+        if (!p.diagnosis) p.diagnosis = dischargeRec.diagnosis;
+      }
+    }
+
+    res.status(200).json({ success: true, data: p });
   } catch (error) {
     next(error);
   }

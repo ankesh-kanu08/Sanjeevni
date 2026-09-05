@@ -1,322 +1,713 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Volume2, VolumeX, RefreshCw, CheckCircle2, X, Sparkles } from 'lucide-react';
+import { Mic, Volume2, VolumeX, RefreshCw, CheckCircle2, X, Sparkles, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import patientService from '../../services/patientService';
 import { extractSymptomsClientSide } from './VoiceCheckInModal';
 
-// Natural voice scripts in Hindi and English
-const SCRIPT = {
-  'hi-IN': {
-    welcome: (name) => `नमस्ते ${name || ''} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपकी तबीयत कैसी लग रही है? कृपया बोल कर बताएं।`,
-    askBreathlessness: "क्या आपको सांस लेने में तकलीफ हो रही है, या चलने फिरने पर सांस फूल रही है?",
-    askMedicines: "क्या आपने आज अपनी डॉक्टर द्वारा दी गई सभी दवाइयाँ समय पर ली हैं?",
-    closing: "धन्यवाद। आपकी स्वास्थ्य जानकारी दर्ज कर ली गई है और आपके डॉक्टर तक भेज दी गई है। आप कृपया आराम करें।",
-    listeningText: "सुन रहे हैं... कृपया बोलिए",
-    speakingText: "संजीवनी साथी बोल रही हैं...",
-    completedText: "जांच पूरी हो गई!",
-    langLabel: "हिंदी"
+// Explicit conversation lifecycle states
+export const ConversationState = {
+  IDLE: 'IDLE',
+  ASKING: 'ASKING',
+  SPEAKING: 'SPEAKING',
+  LISTENING: 'LISTENING',
+  PROCESSING: 'PROCESSING',
+  WAITING_FOR_NEXT_QUESTION: 'WAITING_FOR_NEXT_QUESTION',
+  COMPLETED: 'COMPLETED',
+  ERROR: 'ERROR'
+};
+
+// Complete localized dictionary for 100% language consistency
+const LOCALIZED_STRINGS = {
+  hi: {
+    modalTitle: 'आवाज़ से स्वास्थ्य जांच',
+    modalSubtitle: 'Sanjeevni AI Voice Companion',
+    speakingStatus: 'संजीवनी साथी बोल रही हैं...',
+    listeningStatus: 'सुन रहे हैं... कृपया बोलिए',
+    processingStatus: 'आपका जवाब समझ रही हूँ...',
+    completedStatus: 'आज की स्वास्थ्य जांच पूरी हो गई!',
+    errorStatus: 'आवाज़ समझने में रुकावट आई',
+    langToggleHi: 'हिंदी',
+    langToggleEn: 'English',
+    textFallbackPlaceholder: 'यहाँ लिख कर जवाब दें (या ऊपर बोलें)...',
+    repeatBtn: 'दोबारा सुनें (Repeat)',
+    endCheckinBtn: 'जांच समाप्त करें (End)',
+    viewSummaryBtn: 'विवरण देखें (View Summary)',
+    closeBtn: 'बंद करें',
+    detectedSymptomsTitle: 'पहचाने गए लक्षण (Detected Symptoms):',
+    medicationLabel: 'दवाइयाँ (Medications):',
+    medsTaken: 'समय पर ली गई (Taken)',
+    medsMissed: 'नहीं ली (Missed)',
+    noSpeechPrompt: 'आपकी आवाज़ सुनाई नहीं दी। क्या आप दोबारा बोलना चाहेंगे या नीचे लिख कर जवाब देंगे?',
+    finalReassurance: 'धन्यवाद। आपकी संपूर्ण स्वास्थ्य जानकारी दर्ज कर ली गई है और डॉक्टर व स्वास्थ्य टीम को भेज दी गई है। आप कृपया आराम करें।',
+    riskEvaluatedText: 'स्वास्थ्य जोखिम का विश्लेषण पूरा हुआ',
+    summaryTitle: 'जांच का निष्कर्ष (Assessment Summary)'
   },
-  'en-IN': {
-    welcome: (name) => `Hello ${name || ''}. I am your Sanjeevni care companion. How are you feeling today? Please speak after the prompt.`,
-    askBreathlessness: "Are you having any shortness of breath or difficulty breathing?",
-    askMedicines: "Did you take all your prescribed medicines today?",
-    closing: "Thank you. Your health update has been recorded and shared with your care team. Please take rest.",
-    listeningText: "Listening... Please speak now",
-    speakingText: "Sanjeevni AI is speaking...",
-    completedText: "Voice Check-in Completed!",
-    langLabel: "English"
+  en: {
+    modalTitle: 'Voice Health Check-In',
+    modalSubtitle: 'Sanjeevni AI Voice Companion',
+    speakingStatus: 'Sanjeevni AI is speaking...',
+    listeningStatus: 'Listening... Please speak now',
+    processingStatus: 'Analyzing your response...',
+    completedStatus: "Today's health check is complete!",
+    errorStatus: 'Voice recognition encountered an issue',
+    langToggleHi: 'हिंदी',
+    langToggleEn: 'English',
+    textFallbackPlaceholder: 'Type your response here (or speak above)...',
+    repeatBtn: 'Repeat Question',
+    endCheckinBtn: 'End Check-in',
+    viewSummaryBtn: 'View Summary',
+    closeBtn: 'Close',
+    detectedSymptomsTitle: 'Detected Health Observations:',
+    medicationLabel: 'Medications:',
+    medsTaken: 'Taken as prescribed',
+    medsMissed: 'Missed / Not taken',
+    noSpeechPrompt: "I didn't catch that. Would you like to speak again or type your answer below?",
+    finalReassurance: 'Thank you. Your health update has been recorded and forwarded to your doctor and healthcare team. Please rest well.',
+    riskEvaluatedText: 'Clinical risk evaluation completed',
+    summaryTitle: 'Health Assessment Summary'
   }
 };
 
+// Structured question templates with unique IDs
+const getQuestionsBank = (patientName) => ({
+  q_001_greeting: {
+    id: 'q_001_greeting',
+    category: 'greeting',
+    text: {
+      hi: `नमस्ते ${patientName || 'मरीज'} जी। मैं आपकी संजीवनी केयर साथी हूँ। आज आपकी तबीयत कैसी लग रही है? कृपया बोल कर बताएं।`,
+      en: `Hello ${patientName || 'Patient'}. I am your Sanjeevni care companion. How are you feeling today? Please speak after the prompt.`
+    }
+  },
+  q_002_breathlessness: {
+    id: 'q_002_breathlessness',
+    category: 'breathlessness',
+    text: {
+      hi: 'क्या आपको सांस लेने में तकलीफ हो रही है, या चलने फिरने पर सांस फूल रही है?',
+      en: 'Are you experiencing any shortness of breath, breathing difficulty, or chest tightness?'
+    }
+  },
+  q_003_worsening: {
+    id: 'q_003_worsening',
+    category: 'trend',
+    text: {
+      hi: 'क्या यह तकलीफ या कमजोरी कल के मुकाबले ज्यादा बढ़ गई है?',
+      en: 'Has this discomfort or weakness become worse compared to yesterday?'
+    }
+  },
+  q_004_medication: {
+    id: 'q_004_medication',
+    category: 'medication',
+    text: {
+      hi: 'क्या आपने आज अपनी डॉक्टर द्वारा दी गई सभी दवाइयाँ समय पर ली हैं?',
+      en: 'Did you take all your prescribed medicines on time today?'
+    }
+  },
+  q_005_closing: {
+    id: 'q_005_closing',
+    category: 'closing',
+    text: {
+      hi: 'धन्यवाद। आपकी संपूर्ण स्वास्थ्य जानकारी दर्ज कर ली गई है और डॉक्टर व स्वास्थ्य टीम को भेज दी गई है। आप कृपया आराम करें।',
+      en: 'Thank you. Your health update has been recorded and shared with your clinical team. Please rest well.'
+    }
+  }
+});
+
 export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onCompleted }) {
-  const [language, setLanguage] = useState('hi-IN');
-  const [step, setStep] = useState(1);
-  const [status, setStatus] = useState('idle'); // 'speaking' | 'listening' | 'done' | 'idle'
-  const [conversation, setConversation] = useState([]);
-  const [currentTranscript, setCurrentTranscript] = useState('');
+  // Session level language state: 'hi' | 'en'
+  const [selectedLanguage, setSelectedLanguage] = useState('hi');
+  const [conversationState, setConversationState] = useState(ConversationState.IDLE);
+  const [messages, setMessages] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [collectedSymptoms, setCollectedSymptoms] = useState([]);
-  const [medsAnswer, setMedsAnswer] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [medicationAnswer, setMedicationAnswer] = useState(null);
+  const [overallMood, setOverallMood] = useState('okay');
+  const [finalAssessmentResult, setFinalAssessmentResult] = useState(null);
   const [muted, setMuted] = useState(false);
 
-  const recognitionRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const isCancelledRef = useRef(false);
+  // Guards & Locks
+  const selectedLanguageRef = useRef('hi');
+  const sessionActiveRef = useRef(false);
+  const isAdvancingRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const isListeningRef = useRef(false);
+  const currentQuestionIdRef = useRef(null);
+  const currentSpeakingQuestionIdRef = useRef(null);
+  const processedQuestionIdsRef = useRef(new Set());
+  const conversationTurnIdRef = useRef(0);
+  const currentRequestIdRef = useRef(0);
+  const sessionIdRef = useRef(null);
+  const initializedSessionRef = useRef(false);
+  const activeUtteranceRef = useRef(null);
+
+  const recognitionInstanceRef = useRef(null);
+  const chatScrollRef = useRef(null);
 
   const patientName = patient?.user?.name || patient?.name || 'मरीज';
-  const t = SCRIPT[language] || SCRIPT['hi-IN'];
+  const localized = LOCALIZED_STRINGS[selectedLanguage] || LOCALIZED_STRINGS.hi;
+  const questionsBank = getQuestionsBank(patientName);
 
-  // Scroll to latest message
+  // Auto-scroll conversation
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversation, currentTranscript]);
+    chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, interimTranscript, conversationState]);
 
-  // Completely abort and cancel all active voice synthesis and recognition
-  const stopAllAudio = useCallback(() => {
-    isCancelledRef.current = true;
+  // Stop all active audio & recognition operations cleanly
+  const stopAllSpeechAndRecognition = useCallback(() => {
+    isSpeakingRef.current = false;
+    currentSpeakingQuestionIdRef.current = null;
+    activeUtteranceRef.current = null;
+
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    if (recognitionRef.current) {
       try {
-        recognitionRef.current.abort();
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       } catch (e) {}
     }
-    setStatus('idle');
+
+    if (recognitionInstanceRef.current) {
+      try {
+        recognitionInstanceRef.current.onresult = null;
+        recognitionInstanceRef.current.onerror = null;
+        recognitionInstanceRef.current.onend = null;
+        recognitionInstanceRef.current.abort();
+      } catch (e) {}
+      recognitionInstanceRef.current = null;
+    }
+    isListeningRef.current = false;
   }, []);
 
-  // Text-To-Speech with strict cancellation checks
-  const speakAloud = useCallback((text) => {
+  // Text-To-Speech associated strictly with question ID and explicit language support
+  const speakQuestion = useCallback((questionObj, languageOverride = null) => {
     return new Promise((resolve) => {
-      if (isCancelledRef.current || muted || !window.speechSynthesis) {
+      if (!sessionActiveRef.current || muted || typeof window === 'undefined' || !window.speechSynthesis) {
         resolve();
         return;
       }
 
-      window.speechSynthesis.cancel();
-      setStatus('speaking');
+      const qId = questionObj.id;
+      const targetLang = languageOverride || selectedLanguageRef.current || 'hi';
+      const textToSpeak = questionObj.text[targetLang] || questionObj.text.en || questionObj.text.hi;
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language;
+      // Stop any running speech/mic
+      stopAllSpeechAndRecognition();
+
+      isSpeakingRef.current = true;
+      currentSpeakingQuestionIdRef.current = qId;
+      setConversationState(ConversationState.SPEAKING);
+
+      // Web Speech API resume check for Chromium bug
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      const targetLocale = targetLang === 'hi' ? 'hi-IN' : 'en-IN';
+      utterance.lang = targetLocale;
       utterance.rate = 0.92;
       utterance.pitch = 1.05;
 
       const voices = window.speechSynthesis.getVoices();
-      const targetVoice = voices.find(v => v.lang === language || v.lang.startsWith(language.split('-')[0]));
+      let targetVoice = null;
+      if (targetLang === 'hi') {
+        targetVoice = voices.find(v => v.lang === 'hi-IN' || v.lang.startsWith('hi'));
+      } else {
+        targetVoice = voices.find(v => v.lang === 'en-IN') ||
+                     voices.find(v => v.lang.startsWith('en'));
+      }
       if (targetVoice) utterance.voice = targetVoice;
 
-      utterance.onend = () => {
-        setStatus('idle');
-        resolve();
-      };
-      utterance.onerror = () => {
-        setStatus('idle');
-        resolve();
-      };
-
-      if (isCancelledRef.current) {
-        resolve();
-        return;
+      // Retain reference on window and ref to prevent Chrome garbage collection of utterance
+      activeUtteranceRef.current = utterance;
+      if (typeof window !== 'undefined') {
+        window.__carewatchUtterance = utterance;
       }
 
-      window.speechSynthesis.speak(utterance);
-    });
-  }, [language, muted]);
+      let finished = false;
+      const finishSpeech = () => {
+        if (finished) return;
+        finished = true;
+        isSpeakingRef.current = false;
+        currentSpeakingQuestionIdRef.current = null;
+        activeUtteranceRef.current = null;
+        resolve();
+      };
 
-  // Speech-To-Text with strict cancellation checks
-  const listenToPatient = useCallback(() => {
+      utterance.onend = finishSpeech;
+      utterance.onerror = finishSpeech;
+
+      // Dynamic safety timeout based on text length: ~2 words/sec + 2.5s buffer
+      const wordCount = (textToSpeak || '').split(/\s+/).length;
+      const timeoutMs = Math.max(3500, Math.min(12000, (wordCount / 2.2) * 1000 + 2500));
+      const safetyTimer = setTimeout(() => {
+        finishSpeech();
+      }, timeoutMs);
+
+      // Short 60ms delay after cancel before speak avoids Chrome queue lock
+      setTimeout(() => {
+        if (!sessionActiveRef.current || !isSpeakingRef.current) {
+          clearTimeout(safetyTimer);
+          finishSpeech();
+          return;
+        }
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn('[VoiceAssistant] Speech synthesis speak error:', err);
+          clearTimeout(safetyTimer);
+          finishSpeech();
+        }
+      }, 60);
+    });
+  }, [muted, stopAllSpeechAndRecognition]);
+
+  // Speech Recognition with single-instance and transcript deduplication
+  const startListeningToPatient = useCallback((languageOverride = null) => {
     return new Promise((resolve) => {
-      if (isCancelledRef.current) {
+      if (!sessionActiveRef.current) {
         resolve('');
         return;
       }
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        toast.error('Voice recognition is not supported in this browser.');
+        setConversationState(ConversationState.WAITING_FOR_NEXT_QUESTION);
         resolve('');
         return;
       }
 
-      if (recognitionRef.current) {
-        try { recognitionRef.current.abort(); } catch (e) {}
-      }
+      stopAllSpeechAndRecognition();
 
+      const targetLang = languageOverride || selectedLanguageRef.current || 'hi';
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = language;
+      recognition.lang = targetLang === 'hi' ? 'hi-IN' : 'en-IN';
+      recognitionInstanceRef.current = recognition;
 
-      let finalResult = '';
+      let finalTranscript = '';
+      let hasResolved = false;
+
+      const completeRecognition = (resultText) => {
+        if (hasResolved) return;
+        hasResolved = true;
+        isListeningRef.current = false;
+        if (recognitionInstanceRef.current === recognition) {
+          recognitionInstanceRef.current = null;
+        }
+        setInterimTranscript('');
+        resolve(resultText.trim());
+      };
 
       recognition.onstart = () => {
-        if (isCancelledRef.current) {
+        if (!sessionActiveRef.current) {
           try { recognition.abort(); } catch (e) {}
+          completeRecognition('');
           return;
         }
-        setStatus('listening');
-        setCurrentTranscript('');
+        isListeningRef.current = true;
+        setConversationState(ConversationState.LISTENING);
+        setInterimTranscript('');
       };
 
       recognition.onresult = (event) => {
-        let interim = '';
+        let currentInterim = '';
         for (let i = event.results.length - 1; i < event.results.length; i++) {
           const item = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalResult += item + ' ';
+            finalTranscript += item + ' ';
           } else {
-            interim += item;
+            currentInterim += item;
           }
         }
-        setCurrentTranscript(finalResult.trim() || interim);
+        setInterimTranscript(finalTranscript || currentInterim);
       };
 
-      recognition.onerror = () => {
-        setStatus('idle');
-        resolve(finalResult.trim());
+      recognition.onerror = (event) => {
+        if (event.error === 'aborted' || event.error === 'no-speech') {
+          completeRecognition(finalTranscript);
+          return;
+        }
+        console.warn('[VoiceAssistant] Speech recognition event error:', event.error);
+        completeRecognition(finalTranscript);
       };
 
       recognition.onend = () => {
-        setStatus('idle');
-        resolve(finalResult.trim() || currentTranscript.trim());
+        completeRecognition(finalTranscript);
       };
 
-      recognitionRef.current = recognition;
       try {
-        if (!isCancelledRef.current) {
-          recognition.start();
-        } else {
-          resolve('');
-        }
+        recognition.start();
       } catch (err) {
-        setStatus('idle');
-        resolve('');
+        console.warn('[VoiceAssistant] Recognition start error:', err);
+        completeRecognition('');
       }
     });
-  }, [language, currentTranscript]);
+  }, [stopAllSpeechAndRecognition]);
 
-  // Controlled, cancellable conversation step runner
-  const runStep = useCallback(async (stepNumber) => {
-    if (!isOpen || isCancelledRef.current) return;
-
-    if (stepNumber === 1) {
-      const greeting = t.welcome(patientName);
-      setConversation([{ sender: 'ai', text: greeting }]);
-      await speakAloud(greeting);
-
-      if (isCancelledRef.current) return;
-      const patientSpoken = await listenToPatient();
-
-      if (isCancelledRef.current) return;
-      if (patientSpoken) {
-        setConversation(prev => [...prev, { sender: 'patient', text: patientSpoken }]);
-        const detected = extractSymptomsClientSide(patientSpoken);
-        if (detected.length > 0) setCollectedSymptoms(prev => [...prev, ...detected]);
-      }
-
-      if (isCancelledRef.current) return;
-      setStep(2);
-      runStep(2);
-    } else if (stepNumber === 2) {
-      if (isCancelledRef.current) return;
-      const question = t.askBreathlessness;
-      setConversation(prev => [...prev, { sender: 'ai', text: question }]);
-      await speakAloud(question);
-
-      if (isCancelledRef.current) return;
-      const patientSpoken = await listenToPatient();
-
-      if (isCancelledRef.current) return;
-      if (patientSpoken) {
-        setConversation(prev => [...prev, { sender: 'patient', text: patientSpoken }]);
-        const detected = extractSymptomsClientSide(patientSpoken);
-        if (detected.length > 0) setCollectedSymptoms(prev => [...prev, ...detected]);
-      }
-
-      if (isCancelledRef.current) return;
-      setStep(3);
-      runStep(3);
-    } else if (stepNumber === 3) {
-      if (isCancelledRef.current) return;
-      const question = t.askMedicines;
-      setConversation(prev => [...prev, { sender: 'ai', text: question }]);
-      await speakAloud(question);
-
-      if (isCancelledRef.current) return;
-      const patientSpoken = await listenToPatient();
-
-      if (isCancelledRef.current) return;
-      if (patientSpoken) {
-        setConversation(prev => [...prev, { sender: 'patient', text: patientSpoken }]);
-        const lower = patientSpoken.toLowerCase();
-        const taken = /haan|ha|yes|li hai|le li|taken/.test(lower) && !/nahi|no|bhookh|bhool/.test(lower);
-        setMedsAnswer(taken ? 'Yes' : 'No');
-      } else {
-        setMedsAnswer('Yes');
-      }
-
-      if (isCancelledRef.current) return;
-      setStep(4);
-      runStep(4);
-    } else if (stepNumber === 4) {
-      if (isCancelledRef.current) return;
-      const closingMsg = t.closing;
-      setConversation(prev => [...prev, { sender: 'ai', text: closingMsg }]);
-      setStatus('done');
-      await speakAloud(closingMsg);
-    }
-  }, [isOpen, t, patientName, speakAloud, listenToPatient]);
-
-  // Handle modal lifecycle
-  useEffect(() => {
-    if (isOpen) {
-      isCancelledRef.current = false;
-      setStep(1);
-      setConversation([]);
-      setCollectedSymptoms([]);
-      setMedsAnswer(null);
-      runStep(1);
-    } else {
-      stopAllAudio();
-    }
-    return () => {
-      stopAllAudio();
-    };
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Explicit close handler
-  const handleModalClose = () => {
-    stopAllAudio();
-    onClose();
-  };
-
-  const handleToggleMute = () => {
-    if (!muted) {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-      setMuted(true);
-      toast('आवाज़ बंद कर दी गई (Voice Muted)', { icon: '🔇' });
-    } else {
-      setMuted(false);
-      toast('आवाज़ चालू है (Voice Unmuted)', { icon: '🔊' });
-    }
-  };
-
-  const handleFinalSubmit = async () => {
-    stopAllAudio();
-    setSubmitting(true);
+  // Complete and submit health check-in to backend & risk engine
+  const finalizeCheckIn = useCallback(async (finalConversationMessages, finalSymptoms, finalMeds, finalMood) => {
     try {
-      const fullVoiceDialogue = conversation
-        .map(c => `${c.sender === 'ai' ? 'AI: ' : 'Patient: '}${c.text}`)
+      setConversationState(ConversationState.PROCESSING);
+
+      const fullDialogue = finalConversationMessages
+        .map(m => `${m.role === 'assistant' ? 'AI' : 'Patient'}: ${m.text}`)
         .join('\n');
 
+      const currentLang = selectedLanguageRef.current || selectedLanguage;
       const payload = {
-        rawInput: fullVoiceDialogue,
+        rawInput: fullDialogue,
         channel: 'voice',
-        language: language.startsWith('hi') ? 'hi' : 'en',
-        mood: medsAnswer === 'Yes' ? 'okay' : 'bad',
-        structuredSymptoms: collectedSymptoms.map(s => ({
+        language: currentLang,
+        mood: finalMood || 'okay',
+        structuredSymptoms: finalSymptoms.map(s => ({
           name: s.name,
           severity: s.severity || 'moderate',
           trend: s.trend || 'stable'
         })),
         medicationAdherence: {
-          taken: medsAnswer === 'Yes',
-          notes: medsAnswer || 'Voice reported'
+          taken: finalMeds === 'Yes',
+          notes: finalMeds ? `Voice response: ${finalMeds}` : 'Voice verified'
         }
       };
 
-      const targetId = patient?._id || patient?.id;
-      await patientService.submitCheckIn(targetId, payload);
-      toast.success('जांच सफलतापूर्वक दर्ज हो गई!', { icon: '✅' });
+      const targetPatientId = patient?._id || patient?.id;
+      const response = await patientService.submitCheckIn(targetPatientId || 'me', payload);
 
-      if (onCompleted) onCompleted();
-      onClose();
+      setFinalAssessmentResult(response.data || response);
+      setConversationState(ConversationState.COMPLETED);
+
+      if (onCompleted) {
+        onCompleted();
+      }
     } catch (err) {
-      console.error('Submission error:', err);
-      toast.error('जांच दर्ज करने में त्रुटि हुई, कृपया पुनः प्रयास करें।');
-    } finally {
-      setSubmitting(false);
+      console.error('[VoiceAssistant] Submission error:', err);
+      toast.error(selectedLanguageRef.current === 'hi' ? 'जांच दर्ज करने में त्रुटि हुई' : 'Failed to record check-in');
+      setConversationState(ConversationState.ERROR);
     }
+  }, [patient, onCompleted, selectedLanguage]);
+
+  // SINGLE SOURCE OF TRUTH: advanceConversation()
+  const advanceConversation = useCallback(async (patientInputText = null) => {
+    // Re-entrancy guard
+    if (!sessionActiveRef.current || isAdvancingRef.current) {
+      return;
+    }
+
+    isAdvancingRef.current = true;
+    const currentTurn = conversationTurnIdRef.current;
+    const requestId = ++currentRequestIdRef.current;
+
+    try {
+      // 1. Process patient's answer if provided
+      let currentMessages = [...messages];
+      let updatedSymptoms = [...collectedSymptoms];
+      let updatedMeds = medicationAnswer;
+      let updatedMood = overallMood;
+
+      if (patientInputText && patientInputText.trim()) {
+        const cleanAnswer = patientInputText.trim();
+        const patientMessage = {
+          id: `msg_pat_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          role: 'patient',
+          text: cleanAnswer,
+          timestamp: new Date().toISOString()
+        };
+        currentMessages.push(patientMessage);
+        setMessages([...currentMessages]);
+
+        // Analyze patient response
+        setConversationState(ConversationState.PROCESSING);
+        const detected = extractSymptomsClientSide(cleanAnswer);
+        if (detected.length > 0) {
+          detected.forEach(d => {
+            if (!updatedSymptoms.some(s => s.name === d.name)) {
+              updatedSymptoms.push(d);
+            }
+          });
+          setCollectedSymptoms([...updatedSymptoms]);
+        }
+
+        // Check medication adherence keywords
+        const lower = cleanAnswer.toLowerCase();
+        if (/haan|ha|yes|li hai|le li|taken/.test(lower) && !/nahi|no|bhookh|bhool/.test(lower)) {
+          updatedMeds = 'Yes';
+          setMedicationAnswer('Yes');
+        } else if (/nahi|not|miss|missed|no/.test(lower)) {
+          updatedMeds = 'No';
+          setMedicationAnswer('No');
+        }
+
+        // Check mood
+        if (/better|theek|achha|good|badhiya/.test(lower)) {
+          updatedMood = 'good';
+          setOverallMood('good');
+        } else if (/worse|kharab|problem|dikkat|takleef/.test(lower)) {
+          updatedMood = 'bad';
+          setOverallMood('bad');
+        }
+      }
+
+      if (!sessionActiveRef.current || requestId !== currentRequestIdRef.current) {
+        return;
+      }
+
+      // 2. Select next adaptive question
+      let nextQuestionKey = null;
+      if (!currentQuestionIdRef.current) {
+        nextQuestionKey = 'q_001_greeting';
+      } else if (currentQuestionIdRef.current === 'q_001_greeting') {
+        nextQuestionKey = 'q_002_breathlessness';
+      } else if (currentQuestionIdRef.current === 'q_002_breathlessness') {
+        const hasBreathless = updatedSymptoms.some(s => s.name === 'breathlessness');
+        nextQuestionKey = hasBreathless ? 'q_003_worsening' : 'q_004_medication';
+      } else if (currentQuestionIdRef.current === 'q_003_worsening') {
+        nextQuestionKey = 'q_004_medication';
+      } else if (currentQuestionIdRef.current === 'q_004_medication') {
+        nextQuestionKey = 'q_005_closing';
+      }
+
+      // If all questions are done, finalize
+      if (!nextQuestionKey) {
+        await finalizeCheckIn(currentMessages, updatedSymptoms, updatedMeds, updatedMood);
+        return;
+      }
+
+      const nextQuestion = questionsBank[nextQuestionKey];
+
+      // Duplicate question guard
+      if (
+        processedQuestionIdsRef.current.has(nextQuestion.id) ||
+        currentQuestionIdRef.current === nextQuestion.id
+      ) {
+        console.warn(`[VoiceAssistant] Guard blocked duplicate question: ${nextQuestion.id}`);
+        return;
+      }
+
+      // Lock current question
+      const currentLang = selectedLanguageRef.current || selectedLanguage;
+      currentQuestionIdRef.current = nextQuestion.id;
+      processedQuestionIdsRef.current.add(nextQuestion.id);
+      conversationTurnIdRef.current = currentTurn + 1;
+      setCurrentQuestion(nextQuestion);
+      setConversationState(ConversationState.ASKING);
+
+      // Append assistant message in active language
+      const localizedQuestionText = nextQuestion.text[currentLang] || nextQuestion.text.hi;
+      const assistantMessage = {
+        id: `msg_ai_${nextQuestion.id}`,
+        role: 'assistant',
+        text: localizedQuestionText,
+        questionId: nextQuestion.id,
+        language: currentLang,
+        type: 'question',
+        timestamp: new Date().toISOString()
+      };
+
+      currentMessages.push(assistantMessage);
+      setMessages([...currentMessages]);
+
+      // Speak Question aloud with explicit language
+      await speakQuestion(nextQuestion, currentLang);
+
+      if (!sessionActiveRef.current || requestId !== currentRequestIdRef.current) {
+        return;
+      }
+
+      // If closing question was spoken, auto-finalize session
+      if (nextQuestion.id === 'q_005_closing') {
+        await finalizeCheckIn(currentMessages, updatedSymptoms, updatedMeds, updatedMood);
+        return;
+      }
+
+      // Start listening automatically in active language
+      isAdvancingRef.current = false;
+      const patientVoiceAnswer = await startListeningToPatient(currentLang);
+
+      if (!sessionActiveRef.current || requestId !== currentRequestIdRef.current) {
+        return;
+      }
+
+      // If transcript was captured, continuously advance to the next question
+      if (patientVoiceAnswer && patientVoiceAnswer.trim()) {
+        advanceConversation(patientVoiceAnswer);
+      } else {
+        // No speech detected: leave in waiting state with fallback prompt
+        setConversationState(ConversationState.WAITING_FOR_NEXT_QUESTION);
+      }
+    } catch (err) {
+      console.error('[VoiceAssistant] advanceConversation error:', err);
+      setConversationState(ConversationState.ERROR);
+    } finally {
+      isAdvancingRef.current = false;
+    }
+  }, [
+    messages,
+    collectedSymptoms,
+    medicationAnswer,
+    overallMood,
+    selectedLanguage,
+    questionsBank,
+    speakQuestion,
+    startListeningToPatient,
+    finalizeCheckIn
+  ]);
+
+  // Initialize session safely (React StrictMode protected)
+  useEffect(() => {
+    if (!isOpen) {
+      sessionActiveRef.current = false;
+      initializedSessionRef.current = false;
+      stopAllSpeechAndRecognition();
+      setConversationState(ConversationState.IDLE);
+      return;
+    }
+
+    // Modal Opened
+    if (!initializedSessionRef.current) {
+      initializedSessionRef.current = true;
+      sessionActiveRef.current = true;
+      sessionIdRef.current = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      processedQuestionIdsRef.current = new Set();
+      currentQuestionIdRef.current = null;
+      conversationTurnIdRef.current = 0;
+      currentRequestIdRef.current = 0;
+      isAdvancingRef.current = false;
+      selectedLanguageRef.current = selectedLanguage;
+
+      setMessages([]);
+      setCollectedSymptoms([]);
+      setMedicationAnswer(null);
+      setFinalAssessmentResult(null);
+      setInterimTranscript('');
+      setTextInput('');
+
+      // Launch first question
+      advanceConversation();
+    }
+
+    return () => {
+      sessionActiveRef.current = false;
+      stopAllSpeechAndRecognition();
+    };
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle explicit language change during active session
+  const handleLanguageChange = (newLang) => {
+    if (newLang === selectedLanguageRef.current) return;
+
+    // Invalidate pending async loops
+    const reqId = ++currentRequestIdRef.current;
+    isAdvancingRef.current = false;
+
+    // Stop ongoing speech & listening immediately
+    stopAllSpeechAndRecognition();
+
+    // Update state & ref synchronously
+    selectedLanguageRef.current = newLang;
+    setSelectedLanguage(newLang);
+
+    // If a question is already active, re-render it in the new language and speak
+    if (currentQuestionIdRef.current) {
+      const activeQ = questionsBank[currentQuestionIdRef.current];
+      if (activeQ) {
+        const localizedQuestionText = activeQ.text[newLang] || activeQ.text.hi;
+        setCurrentQuestion(activeQ);
+
+        // Update message text for the current question without creating a duplicate
+        setMessages(prev =>
+          prev.map(m =>
+            m.questionId === activeQ.id
+              ? { ...m, text: localizedQuestionText, language: newLang }
+              : m
+          )
+        );
+
+        // Re-speak question in newly selected language after brief tick, then listen in new language
+        setTimeout(async () => {
+          if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+
+          await speakQuestion(activeQ, newLang);
+          if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+
+          const answer = await startListeningToPatient(newLang);
+          if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+
+          if (answer && answer.trim()) {
+            advanceConversation(answer);
+          } else {
+            setConversationState(ConversationState.WAITING_FOR_NEXT_QUESTION);
+          }
+        }, 80);
+      }
+    }
+  };
+
+  // Safe manual close
+  const handleClose = () => {
+    sessionActiveRef.current = false;
+    stopAllSpeechAndRecognition();
+    onClose();
+  };
+
+  // Manual repeat question
+  const handleRepeatQuestion = () => {
+    if (!currentQuestionIdRef.current) return;
+    const activeQ = questionsBank[currentQuestionIdRef.current];
+    if (!activeQ) return;
+
+    const reqId = ++currentRequestIdRef.current;
+    isAdvancingRef.current = false;
+    stopAllSpeechAndRecognition();
+
+    const currentLang = selectedLanguageRef.current;
+    speakQuestion(activeQ, currentLang).then(async () => {
+      if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+      const answer = await startListeningToPatient(currentLang);
+      if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+
+      if (answer && answer.trim()) {
+        advanceConversation(answer);
+      } else {
+        setConversationState(ConversationState.WAITING_FOR_NEXT_QUESTION);
+      }
+    });
+  };
+
+  // Handle manual tap on mic or orb to interrupt speaking and speak immediately
+  const handleTapToSpeak = () => {
+    if (conversationState === ConversationState.COMPLETED) return;
+
+    const reqId = ++currentRequestIdRef.current;
+    isAdvancingRef.current = false;
+    stopAllSpeechAndRecognition();
+
+    const currentLang = selectedLanguageRef.current;
+    setConversationState(ConversationState.LISTENING);
+    startListeningToPatient(currentLang).then(answer => {
+      if (!sessionActiveRef.current || reqId !== currentRequestIdRef.current) return;
+      if (answer && answer.trim()) {
+        advanceConversation(answer);
+      } else {
+        setConversationState(ConversationState.WAITING_FOR_NEXT_QUESTION);
+      }
+    });
+  };
+
+  // Text input submit fallback
+  const handleTextFallbackSubmit = (e) => {
+    e.preventDefault();
+    if (!textInput.trim() || isAdvancingRef.current) return;
+    const submittedText = textInput;
+    setTextInput('');
+    advanceConversation(submittedText);
   };
 
   if (!isOpen) return null;
@@ -325,7 +716,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] shadow-2xl relative border border-slate-200 flex flex-col overflow-hidden">
         
-        {/* Top Header - Fixed */}
+        {/* Top Header */}
         <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-2">
             <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -333,17 +724,24 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
             </span>
             <div>
               <h2 className="text-lg font-bold text-slate-900 leading-tight">
-                आवाज़ से स्वास्थ्य जांच
+                {localized.modalTitle}
               </h2>
-              <p className="text-xs text-slate-500">Autonomous Rural Voice Consultation</p>
+              <p className="text-xs text-slate-500">{localized.modalSubtitle}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mute Voice Button */}
+            {/* Mute Voice */}
             <button
               type="button"
-              onClick={handleToggleMute}
+              onClick={() => {
+                if (!muted) {
+                  stopAllSpeechAndRecognition();
+                  setMuted(true);
+                } else {
+                  setMuted(false);
+                }
+              }}
               className={`p-1.5 rounded-full border transition-colors ${
                 muted ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200'
               }`}
@@ -352,45 +750,33 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* Language Switch */}
+            {/* Language Switcher */}
             <div className="flex bg-slate-100 p-0.5 rounded-full text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => {
-                  stopAllAudio();
-                  setLanguage('hi-IN');
-                  isCancelledRef.current = false;
-                  setStep(1);
-                  runStep(1);
-                }}
+                onClick={() => handleLanguageChange('hi')}
                 className={`px-2.5 py-1 rounded-full transition-all ${
-                  language === 'hi-IN' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
+                  selectedLanguage === 'hi' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
                 }`}
               >
-                हिंदी
+                {localized.langToggleHi}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  stopAllAudio();
-                  setLanguage('en-IN');
-                  isCancelledRef.current = false;
-                  setStep(1);
-                  runStep(1);
-                }}
+                onClick={() => handleLanguageChange('en')}
                 className={`px-2.5 py-1 rounded-full transition-all ${
-                  language === 'en-IN' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
+                  selectedLanguage === 'en' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
                 }`}
               >
-                Eng
+                {localized.langToggleEn}
               </button>
             </div>
 
-            {/* Safe Close Button */}
+            {/* Close Button */}
             <button
-              onClick={handleModalClose}
+              onClick={handleClose}
               className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-              title="Close and stop audio"
+              title={localized.closeBtn}
             >
               <X size={20} />
             </button>
@@ -400,92 +786,126 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
         {/* Scrollable Center Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           
-          {/* Animated AI Voice Avatar & Wave */}
-          <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-gradient-to-b from-teal-50/70 to-slate-50 border border-teal-100/60">
-            <div className="relative mb-3">
-              {status === 'speaking' && (
+          {/* Animated Status Sphere (Clickable to interrupt speech & speak anytime) */}
+          <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-teal-50/70 to-slate-50 border border-teal-100/60">
+            <button
+              type="button"
+              onClick={handleTapToSpeak}
+              disabled={conversationState === ConversationState.COMPLETED}
+              title={
+                conversationState === ConversationState.SPEAKING
+                  ? (selectedLanguage === 'hi' ? 'रोकें और तुरंत बोलें (Click to interrupt & speak)' : 'Click to interrupt & speak')
+                  : (selectedLanguage === 'hi' ? 'बोलने के लिए यहाँ दबाएँ (Tap to speak)' : 'Tap to speak')
+              }
+              className="relative mb-2 group cursor-pointer focus:outline-none transition-transform active:scale-95 disabled:cursor-default"
+            >
+              {conversationState === ConversationState.SPEAKING && (
                 <span className="absolute -inset-3 rounded-full bg-teal-400/30 animate-ping" />
               )}
-              {status === 'listening' && (
+              {conversationState === ConversationState.LISTENING && (
                 <span className="absolute -inset-3 rounded-full bg-red-500/35 animate-ping" />
               )}
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                status === 'speaking'
-                  ? 'bg-teal-600 text-white ring-4 ring-teal-100 scale-105'
-                  : status === 'listening'
-                  ? 'bg-red-600 text-white ring-4 ring-red-100 scale-105'
+              {conversationState === ConversationState.PROCESSING && (
+                <span className="absolute -inset-3 rounded-full bg-amber-400/30 animate-pulse" />
+              )}
+              <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
+                conversationState === ConversationState.SPEAKING
+                  ? 'bg-teal-600 text-white ring-4 ring-teal-100 scale-105 group-hover:bg-teal-700'
+                  : conversationState === ConversationState.LISTENING
+                  ? 'bg-red-600 text-white ring-4 ring-red-100 scale-105 group-hover:bg-red-700'
+                  : conversationState === ConversationState.PROCESSING
+                  ? 'bg-amber-600 text-white ring-4 ring-amber-100'
+                  : conversationState === ConversationState.COMPLETED
+                  ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
                   : 'bg-slate-800 text-white'
               }`}>
-                {status === 'speaking' ? (
-                  <Volume2 size={36} className="animate-pulse" />
-                ) : status === 'listening' ? (
-                  <Mic size={36} className="animate-pulse" />
+                {conversationState === ConversationState.SPEAKING ? (
+                  <Volume2 size={32} className="animate-pulse" />
+                ) : conversationState === ConversationState.LISTENING ? (
+                  <Mic size={32} className="animate-pulse" />
+                ) : conversationState === ConversationState.PROCESSING ? (
+                  <RefreshCw size={28} className="animate-spin" />
+                ) : conversationState === ConversationState.COMPLETED ? (
+                  <CheckCircle2 size={32} className="text-white" />
                 ) : (
-                  <CheckCircle2 size={36} className="text-emerald-400" />
+                  <Sparkles size={28} />
                 )}
               </div>
-            </div>
+            </button>
 
-            {/* Voice Wave Animation Bars */}
-            {(status === 'speaking' || status === 'listening') && (
-              <div className="flex items-center gap-1.5 mb-2 h-5">
-                <span className={`w-1 rounded-full ${status === 'listening' ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_100ms] h-3`} />
-                <span className={`w-1 rounded-full ${status === 'listening' ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_300ms] h-5`} />
-                <span className={`w-1 rounded-full ${status === 'listening' ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_150ms] h-4`} />
-                <span className={`w-1 rounded-full ${status === 'listening' ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_400ms] h-5`} />
-                <span className={`w-1 rounded-full ${status === 'listening' ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_200ms] h-2`} />
+            {/* Audio Wave Bars */}
+            {(conversationState === ConversationState.SPEAKING || conversationState === ConversationState.LISTENING) && (
+              <div className="flex items-center gap-1.5 mb-2 h-4">
+                <span className={`w-1 rounded-full ${conversationState === ConversationState.LISTENING ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_100ms] h-2.5`} />
+                <span className={`w-1 rounded-full ${conversationState === ConversationState.LISTENING ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_300ms] h-4`} />
+                <span className={`w-1 rounded-full ${conversationState === ConversationState.LISTENING ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_150ms] h-3`} />
+                <span className={`w-1 rounded-full ${conversationState === ConversationState.LISTENING ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_400ms] h-4`} />
+                <span className={`w-1 rounded-full ${conversationState === ConversationState.LISTENING ? 'bg-red-500' : 'bg-teal-600'} animate-[bounce_0.8s_infinite_200ms] h-2`} />
               </div>
             )}
 
-            <p className="font-extrabold text-base text-slate-800">
-              {status === 'speaking' && <span className="text-teal-700">{t.speakingText}</span>}
-              {status === 'listening' && <span className="text-red-600">{t.listeningText}</span>}
-              {status === 'done' && <span className="text-emerald-700">{t.completedText}</span>}
-              {status === 'idle' && <span className="text-slate-600">बातचीत जारी है...</span>}
+            <p className="font-extrabold text-sm sm:text-base text-slate-800 text-center">
+              {conversationState === ConversationState.SPEAKING && <span className="text-teal-700">{localized.speakingStatus}</span>}
+              {conversationState === ConversationState.LISTENING && <span className="text-red-600">{localized.listeningStatus}</span>}
+              {conversationState === ConversationState.PROCESSING && <span className="text-amber-700">{localized.processingStatus}</span>}
+              {conversationState === ConversationState.COMPLETED && <span className="text-emerald-700">{localized.completedStatus}</span>}
+              {conversationState === ConversationState.WAITING_FOR_NEXT_QUESTION && (
+                <span className="text-slate-600 text-xs sm:text-sm font-medium">{localized.noSpeechPrompt}</span>
+              )}
             </p>
 
-            {currentTranscript && status === 'listening' && (
+            {conversationState === ConversationState.SPEAKING && (
+              <button
+                type="button"
+                onClick={handleTapToSpeak}
+                className="mt-1.5 text-xs text-teal-700 hover:text-teal-900 font-semibold underline cursor-pointer"
+              >
+                {selectedLanguage === 'hi' ? 'रोकें और तुरंत बोलें (Tap to interrupt & speak)' : 'Tap to interrupt & speak'}
+              </button>
+            )}
+
+            {interimTranscript && conversationState === ConversationState.LISTENING && (
               <p className="mt-2 text-xs font-semibold text-slate-700 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-slate-200 text-center max-w-sm">
-                "{currentTranscript}"
+                "{interimTranscript}"
               </p>
             )}
           </div>
 
           {/* Conversation Transcript */}
-          <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm">
-            {conversation.map((msg, i) => (
+          <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm">
+            {messages.map((msg) => (
               <div
-                key={i}
-                className={`flex gap-2 ${msg.sender === 'ai' ? 'justify-start' : 'justify-end'}`}
+                key={msg.id}
+                className={`flex gap-2 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}
               >
-                {msg.sender === 'ai' && (
+                {msg.role === 'assistant' && (
                   <span className="w-5 h-5 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                     AI
                   </span>
                 )}
                 <div
-                  className={`p-2.5 rounded-xl max-w-[85%] font-medium leading-relaxed ${
-                    msg.sender === 'ai'
+                  className={`p-3 rounded-2xl max-w-[85%] font-medium leading-relaxed ${
+                    msg.role === 'assistant'
                       ? 'bg-white text-slate-800 border border-slate-200 rounded-tl-none shadow-xs'
                       : 'bg-teal-600 text-white rounded-tr-none shadow-xs'
                   }`}
                 >
                   {msg.text}
                 </div>
-                {msg.sender === 'patient' && (
+                {msg.role === 'patient' && (
                   <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                    आप
+                    {selectedLanguage === 'hi' ? 'आप' : 'You'}
                   </span>
                 )}
               </div>
             ))}
-            <div ref={chatEndRef} />
+            <div ref={chatScrollRef} />
           </div>
 
           {/* Identified Symptoms Pill Tags */}
           {collectedSymptoms.length > 0 && (
             <div className="p-3 bg-teal-50/70 rounded-2xl border border-teal-200 text-xs">
-              <p className="font-bold text-teal-900 mb-1.5">पहचाने गए लक्षण (Detected):</p>
+              <p className="font-bold text-teal-900 mb-1.5">{localized.detectedSymptomsTitle}</p>
               <div className="flex flex-wrap gap-1.5">
                 {collectedSymptoms.map((s, idx) => (
                   <span
@@ -503,32 +923,92 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
               </div>
             </div>
           )}
+
+          {/* Final Completed Summary Card */}
+          {conversationState === ConversationState.COMPLETED && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2 text-xs sm:text-sm animate-in fade-in">
+              <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                <ShieldCheck size={18} />
+                <span>{localized.summaryTitle}</span>
+              </div>
+              <p className="text-emerald-700 font-medium">{localized.finalReassurance}</p>
+              <div className="pt-2 border-t border-emerald-200/60 flex flex-wrap gap-3 text-xs text-emerald-900">
+                <span>
+                  <strong>{localized.medicationLabel}</strong> {medicationAnswer === 'Yes' ? localized.medsTaken : localized.medsMissed}
+                </span>
+                <span>
+                  <strong>Risk Status:</strong> {finalAssessmentResult?.riskLevel || 'Analyzed & Active'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Text input fallback so patient can type if voice is noisy or mic unavailable */}
+          {conversationState !== ConversationState.COMPLETED && (
+            <form onSubmit={handleTextFallbackSubmit} className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder={localized.textFallbackPlaceholder}
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <button
+                type="submit"
+                disabled={!textInput.trim()}
+                className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold disabled:opacity-40 transition-colors flex items-center gap-1"
+              >
+                <Send size={14} />
+              </button>
+            </form>
+          )}
         </div>
 
-        {/* Bottom Fixed Action Footer - NEVER CLIPPED */}
+        {/* Bottom Actions Bar */}
         <div className="p-3 sm:p-4 bg-white border-t border-slate-100 flex items-center justify-between gap-2.5 shrink-0 z-10">
           <button
             type="button"
-            onClick={() => {
-              stopAllAudio();
-              isCancelledRef.current = false;
-              runStep(step || 1);
-            }}
-            className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0"
+            onClick={handleRepeatQuestion}
+            disabled={conversationState === ConversationState.COMPLETED || isAdvancingRef.current}
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 shrink-0"
             title="Repeat current question"
           >
-            <RefreshCw size={14} /> दोबारा बोलें (Repeat)
+            <RefreshCw size={14} /> {localized.repeatBtn}
           </button>
 
-          <button
-            type="button"
-            onClick={handleFinalSubmit}
-            disabled={submitting || conversation.length === 0}
-            className="flex-1 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
-          >
-            <CheckCircle2 size={16} />
-            {submitting ? 'जमा हो रहा है...' : 'जांच सुरक्षित जमा करें (Submit & Analyze)'}
-          </button>
+          {conversationState === ConversationState.COMPLETED ? (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 size={16} />
+              {localized.closeBtn}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleTapToSpeak}
+                className={`px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs ${
+                  conversationState === ConversationState.LISTENING
+                    ? 'bg-red-600 text-white ring-2 ring-red-300 animate-pulse'
+                    : 'bg-teal-600 hover:bg-teal-700 text-white'
+                }`}
+                title={selectedLanguage === 'hi' ? 'माइक चालू करें और बोलें' : 'Turn on mic and speak'}
+              >
+                <Mic size={14} />
+                <span>{selectedLanguage === 'hi' ? 'बोलें (Tap to Speak)' : 'Tap to Speak'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
+                {localized.endCheckinBtn}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

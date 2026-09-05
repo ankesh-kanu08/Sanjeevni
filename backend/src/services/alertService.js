@@ -3,8 +3,12 @@ import { emitAlert } from '../sockets/index.js';
 
 export const createAlert = async (data) => {
   const alert = await Alert.create(data);
-  emitAlert(data.targetUser, data.targetRole, alert);
-  return alert;
+  const populated = await Alert.findById(alert._id)
+    .populate({ path: 'patient', populate: { path: 'user', select: 'name' } });
+
+  const alertPayload = populated ? populated.toObject() : alert.toObject();
+  emitAlert(data.targetUser, data.targetRole, alertPayload);
+  return populated || alert;
 };
 
 export const getAlerts = async (userId, role, filters = {}) => {

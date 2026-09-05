@@ -8,11 +8,11 @@ const patientCheckInSchema = new mongoose.Schema({
   language: { type: String, default: 'en' },
   structuredSymptoms: [{
     name: String,
-    severity: { type: String, enum: ['mild', 'moderate', 'severe'] },
-    trend: { type: String, enum: ['stable', 'improving', 'worsening'] },
+    severity: { type: String, enum: ['mild', 'moderate', 'severe'], default: 'moderate' },
+    trend: { type: String, enum: ['stable', 'improving', 'worsening'], default: 'stable' },
     onset: String
   }],
-  mood: { type: String, enum: ['good', 'okay', 'bad'] },
+  mood: { type: String, enum: ['good', 'okay', 'bad', 'better', 'same', 'worse'], default: 'okay' },
   medicationAdherence: {
     taken: Boolean,
     missed: [String],

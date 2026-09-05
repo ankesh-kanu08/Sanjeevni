@@ -4,6 +4,7 @@ import { Activity, X, Bell } from 'lucide-react';
 import AlertCard from '../../components/doctor/AlertCard';
 import DecisionForm from '../../components/doctor/DecisionForm';
 import doctorService from '../../services/doctorService';
+import useSocket from '../../hooks/useSocket';
 import toast from 'react-hot-toast';
 
 const DoctorAlerts = () => {
@@ -12,11 +13,26 @@ const DoctorAlerts = () => {
   const [activeTab, setActiveTab] = useState('unread');
   const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchAlerts();
   }, []);
+
+  // Real-time live alerts update
+  useEffect(() => {
+    if (!socket) return;
+    const handleIncomingAlert = () => {
+      fetchAlerts();
+    };
+    socket.on('alert', handleIncomingAlert);
+    socket.on('new_alert', handleIncomingAlert);
+    return () => {
+      socket.off('alert', handleIncomingAlert);
+      socket.off('new_alert', handleIncomingAlert);
+    };
+  }, [socket]);
 
   const fetchAlerts = async () => {
     try {

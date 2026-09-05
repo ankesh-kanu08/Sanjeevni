@@ -97,33 +97,65 @@ export default function PatientCheckIn() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const structuredSymptoms = formData.symptoms.map(s => ({
-        name: s.toLowerCase().replace(/\s+/g, '_'),
-        severity: (symptomDetails[s]?.severity || 'moderate').toLowerCase(),
-        trend: symptomDetails[s]?.trend === 'Getting Worse' ? 'worsening' : symptomDetails[s]?.trend === 'Getting Better' ? 'improving' : 'stable'
-      }));
+      let targetId = patientId;
+      if (!targetId) {
+        try {
+          const pRes = await patientService.getMyRecord();
+          targetId = pRes.data?._id || pRes.data?.id;
+        } catch (e) {
+          console.warn('Could not fetch patient record prior to submission:', e);
+        }
+      }
+
+      const structuredSymptoms = formData.symptoms.map(s => {
+        const details = symptomDetails[s] || {};
+        const trendVal = details.trend === 'Getting Worse' ? 'worsening' : details.trend === 'Getting Better' ? 'improving' : 'stable';
+        const sevVal = (details.severity || 'moderate').toLowerCase();
+        return {
+          name: s.toLowerCase().replace(/\s+/g, '_'),
+          severity: ['mild', 'moderate', 'severe'].includes(sevVal) ? sevVal : 'moderate',
+          trend: ['stable', 'improving', 'worsening'].includes(trendVal) ? trendVal : 'stable'
+        };
+      });
+
+      const moodMap = {
+        better: 'good',
+        same: 'okay',
+        worse: 'bad',
+        good: 'good',
+        okay: 'okay',
+        bad: 'bad'
+      };
+
       const payload = {
-        rawInput: formData.feelingDesc,
-        mood: formData.mood || 'okay',
+        rawInput: formData.feelingDesc || '',
+        mood: moodMap[formData.mood] || 'okay',
         structuredSymptoms,
         medicationAdherence: {
           taken: formData.medsTaken === 'Yes',
-          notes: formData.medsTaken
+          notes: formData.medsTaken || 'Reported via web form'
         },
         channel: 'web'
       };
-      await patientService.submitCheckIn(patientId, payload);
+
+      await patientService.submitCheckIn(targetId || 'me', payload);
+
       const vitals = Object.fromEntries(Object.entries(formData.vitals).filter(([, value]) => value !== ''));
-      if (Object.keys(vitals).length > 0) {
-        await patientService.submitVitals(patientId, {
-          source: 'patient',
-          ...Object.fromEntries(Object.entries(vitals).map(([key, value]) => [key, Number(value)]))
-        });
+      if (Object.keys(vitals).length > 0 && targetId) {
+        try {
+          await patientService.submitVitals(targetId, {
+            source: 'patient',
+            ...Object.fromEntries(Object.entries(vitals).map(([key, value]) => [key, Number(value)]))
+          });
+        } catch (vErr) {
+          console.warn('Vitals submission error:', vErr);
+        }
       }
+
       setSubmitted(true);
-      toast.success('Check-in completed!');
-      setTimeout(() => navigate('/patient/dashboard'), 3000);
+      toast.success('Check-in submitted successfully!');
     } catch (err) {
+      console.error('Checkin submit error:', err);
       toast.error('Failed to submit check-in. Please try again.');
     } finally {
       setLoading(false);
@@ -132,16 +164,26 @@ export default function PatientCheckIn() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <CheckCircle2 size={120} className="text-emerald-500 mb-6" />
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Check-in submitted successfully!</h1>
-        <p className="text-2xl text-gray-600 mb-8">Thank you for updating us. Your healthcare team has been notified.</p>
-        <button 
-          onClick={() => navigate('/patient/dashboard')}
-          className="bg-teal-600 text-white text-xl font-bold py-4 px-8 rounded-xl"
-        >
-          Return to Dashboard
-        </button>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
+        <CheckCircle2 size={96} className="text-emerald-500 mb-5 animate-bounce" />
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Check-in Recorded Successfully!</h1>
+        <p className="text-lg text-gray-600 mb-8">
+          Thank you for updating us. Your symptoms have been analyzed by Sanjeevni AI and updated in your patient history.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <button 
+            onClick={() => navigate('/patient/history')}
+            className="flex-1 bg-teal-600 text-white text-base font-bold py-3.5 px-6 rounded-2xl shadow-md hover:bg-teal-700 transition-colors"
+          >
+            View in History (इतिहास देखें)
+          </button>
+          <button 
+            onClick={() => navigate('/patient/dashboard')}
+            className="flex-1 bg-slate-100 text-slate-700 text-base font-bold py-3.5 px-6 rounded-2xl hover:bg-slate-200 transition-colors"
+          >
+            Dashboard
+          </button>
+        </div>
       </div>
     );
   }

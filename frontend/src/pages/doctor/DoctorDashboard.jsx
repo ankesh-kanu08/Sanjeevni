@@ -6,65 +6,57 @@ import { useAuth } from '../../hooks/useAuth';
 import AlertCard from '../../components/doctor/AlertCard';
 // import RiskDistributionChart from '../../components/charts/RiskDistributionChart'; // Using inline for safe Recharts usage
 import doctorService from '../../services/doctorService';
+import useSocket from '../../hooks/useSocket';
 import toast from 'react-hot-toast';
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
       try {
-        setLoading(true);
-        // Fallback dummy data in case API is not fully implemented
-        try {
-          const [statsData, alertsData, patientsData] = await Promise.all([
-            doctorService.getStats(),
-            doctorService.getAlerts(),
-            doctorService.getPatients()
-          ]);
-          setStats(statsData);
-          setAlerts(alertsData);
-          setPatients(patientsData);
-        } catch (err) {
-          console.warn("API Error, using fallback data", err);
-          // Fallback data for demonstration
-          setStats({
-            totalPatients: 145,
-            highRisk: 12,
-            mediumRisk: 34,
-            pendingReviews: 8,
-            todayAlerts: 15
-          });
-          setAlerts([
-            {
-              _id: '1',
-              patient: { name: 'Rajesh Kumar', age: 65, _id: 'p1' },
-              riskLevel: 'HIGH',
-              title: 'Abnormal SpO2 Drop',
-              message: 'Patient oxygen saturation dropped below 90% repeatedly during night.',
-              reasons: ['SpO2 avg 88% over last 4 hours', 'Increased heart rate (110 bpm)'],
-              isRead: false,
-              createdAt: new Date().toISOString()
-            }
-          ]);
-          setPatients([
-            { _id: 'p2', name: 'Sunita Sharma', age: 58, riskLevel: 'MEDIUM', lastUpdate: new Date().toISOString() }
-          ]);
-        }
-      } catch (error) {
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
+        const [statsData, alertsData, patientsData] = await Promise.all([
+          doctorService.getStats(),
+          doctorService.getAlerts(),
+          doctorService.getPatients()
+        ]);
+        setStats(statsData?.data || statsData);
+        setAlerts(Array.isArray(alertsData?.data) ? alertsData.data : Array.isArray(alertsData) ? alertsData : []);
+        setPatients(Array.isArray(patientsData?.data) ? patientsData.data : Array.isArray(patientsData) ? patientsData : []);
+      } catch (err) {
+        console.warn("API Error, using fallback data", err);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Real-time live dashboard update on alert or risk escalation
+  useEffect(() => {
+    if (!socket) return;
+    const handleUpdate = () => {
+      fetchDashboardData();
+    };
+    socket.on('alert', handleUpdate);
+    socket.on('new_alert', handleUpdate);
+    socket.on('risk_update', handleUpdate);
+    return () => {
+      socket.off('alert', handleUpdate);
+      socket.off('new_alert', handleUpdate);
+      socket.off('risk_update', handleUpdate);
+    };
+  }, [socket]);
 
   const handleReviewPatient = (alert) => {
     navigate(`/doctor/patient/${alert.patient._id}`);

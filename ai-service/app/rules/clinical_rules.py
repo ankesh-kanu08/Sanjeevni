@@ -2,8 +2,8 @@ from typing import Dict, Any, List
 
 class ClinicalSafetyRules:
     CRITICAL_RULES = [
-        ('spo2', lambda v: v is not None and v < 90, 'SpO2 critically low (<90%)', 'HIGH'),
-        ('spo2', lambda v: v is not None and v < 92, 'SpO2 below safe threshold (<92%)', 'HIGH'),
+        ('spo2', lambda v: v is not None and v < 90, 'SpO₂ critically low (<90%)', 'HIGH'),
+        ('spo2', lambda v: v is not None and v < 92, 'SpO₂ below safe clinical threshold (<92%)', 'HIGH'),
         ('heartRate', lambda v: v is not None and v > 120, 'Heart rate dangerously elevated (>120 bpm)', 'HIGH'),
         ('heartRate', lambda v: v is not None and v < 50, 'Heart rate dangerously low (<50 bpm)', 'HIGH'),
         ('temperature', lambda v: v is not None and v > 103, 'High fever (>103°F)', 'HIGH'),
@@ -14,8 +14,12 @@ class ClinicalSafetyRules:
     ]
     
     SYMPTOM_RULES = [
-        (['severe_breathlessness', 'chest_pain', 'confusion', 'unresponsive'], 'HIGH', 'Critical symptom reported'),
-        (['increased_breathlessness', 'worsening_breathlessness'], 'MEDIUM', 'Worsening breathlessness reported'),
+        (['severe_breathlessness', 'chest_pain', 'confusion', 'unresponsive'], 'HIGH', 'Critical cardiopulmonary symptom reported'),
+        (['wound_discharge'], 'HIGH', 'Surgical wound discharge / suspected infection reported'),
+        (['increased_breathlessness', 'worsening_breathlessness', 'breathlessness_worsening', 'shortness_of_breath_worsening'], 'MEDIUM', 'Breathlessness worsening reported'),
+        (['pedal_edema', 'orthopnea'], 'MEDIUM', 'Cardiovascular fluid overload / pedal edema reported'),
+        (['palpitation'], 'MEDIUM', 'Cardiac palpitations / tachycardia reported'),
+        (['surgical_wound_pain'], 'MEDIUM', 'Persistent surgical site discomfort reported'),
     ]
     
     def evaluate(self, current_vitals: Any, deviations: List[Any], symptoms: List[str]) -> Dict[str, Any]:

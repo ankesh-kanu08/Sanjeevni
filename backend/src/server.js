@@ -10,6 +10,7 @@ import { Server } from 'socket.io';
 import connectDB from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import setupSockets from './sockets/index.js';
+import './models/index.js';
 
 // Routes
 import authRoutes from './routes/auth.js';

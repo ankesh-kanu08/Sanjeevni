@@ -12,7 +12,7 @@ const patientSchema = new mongoose.Schema({
     district: String,
     state: String,
     pincode: String,
-    location: { type: String, enum: ['rural', 'urban'] }
+    location: { type: String, enum: ['rural', 'urban', 'semi-urban'] }
   },
   diagnosis: String,
   comorbidities: [String],
@@ -23,6 +23,9 @@ const patientSchema = new mongoose.Schema({
   assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   monitoringActive: { type: Boolean, default: true },
   currentRiskLevel: { type: String, enum: Object.values(RISK_LEVELS), default: RISK_LEVELS.LOW },
+  currentRiskScore: { type: Number, default: 0 },
+  latestAssessment: { type: mongoose.Schema.Types.ObjectId, ref: 'RiskAssessment' },
+  dischargeRecord: { type: mongoose.Schema.Types.ObjectId, ref: 'DischargeRecord' },
   lastCheckIn: Date
 }, { timestamps: true });
 

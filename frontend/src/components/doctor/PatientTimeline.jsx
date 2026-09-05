@@ -56,37 +56,55 @@ const PatientTimeline = ({ events = [] }) => {
   );
 };
 
+const sourceLabels = {
+  hospital: { label: 'Hospital Discharge Record', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  patient: { label: 'Patient Voice Check-in', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  worker: { label: 'ASHA Field Assessment', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  ai: { label: 'AI Risk Engine', color: 'bg-teal-50 text-teal-700 border-teal-200' },
+  doctor: { label: 'Doctor Clinical Decision', color: 'bg-blue-50 text-blue-700 border-blue-200' }
+};
+
 const TimelineEvent = ({ event }) => {
   const [expanded, setExpanded] = useState(false);
   const Icon = iconMap[event.eventType] || Activity;
   const colors = severityColor[event.severity] || severityColor.info;
+  const sourceInfo = sourceLabels[event.sourceRole] || (event.sourceRole ? { label: event.sourceRole, color: 'bg-slate-50 text-slate-700 border-slate-200' } : null);
 
   return (
     <div className="relative pl-6">
       <div className={`absolute -left-[22px] p-1.5 rounded-full border bg-white ${colors}`}>
         <Icon size={16} />
       </div>
-      <div className="bg-white border rounded-lg p-4 shadow-sm">
-        <div className="flex justify-between items-start mb-2">
+      <div className="bg-white border rounded-lg p-4 shadow-sm hover:border-slate-300 transition-colors">
+        <div className="flex justify-between items-start mb-1.5">
           <div>
-            <h4 className="font-semibold text-slate-800">{event.title}</h4>
-            <p className="text-sm text-slate-600 mt-1">{event.description}</p>
+            <h4 className="font-semibold text-slate-800 text-sm">{event.title}</h4>
+            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">{event.description}</p>
           </div>
-          <span className="text-xs text-slate-400 whitespace-nowrap ml-4">
-            {eventDate(event.createdAt) ? formatDistanceToNow(eventDate(event.createdAt), { addSuffix: true }) : 'Time unavailable'}
+          <span className="text-[11px] text-slate-400 whitespace-nowrap ml-3">
+            {eventDate(event.createdAt) ? formatDistanceToNow(eventDate(event.createdAt), { addSuffix: true }) : 'Recently'}
           </span>
         </div>
+
+        {sourceInfo && (
+          <div className="mt-2 flex items-center">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${sourceInfo.color}`}>
+              Source: {sourceInfo.label}
+            </span>
+          </div>
+        )}
+
         {event.data && (
-          <div className="mt-2">
+          <div className="mt-2.5 pt-2 border-t border-slate-100">
             <button 
               onClick={() => setExpanded(!expanded)}
               className="text-xs text-teal-600 flex items-center hover:text-teal-700 font-medium"
             >
               {expanded ? <ChevronUp size={14} className="mr-1" /> : <ChevronDown size={14} className="mr-1" />}
-              {expanded ? 'Hide Details' : 'View Details'}
+              {expanded ? 'Hide Clinical Details' : 'View Clinical Details'}
             </button>
             {expanded && (
-              <pre className="mt-2 p-3 bg-slate-50 rounded text-xs text-slate-700 overflow-x-auto border border-slate-100">
+              <pre className="mt-2 p-3 bg-slate-50 rounded text-xs text-slate-700 overflow-x-auto border border-slate-100 font-mono">
                 {JSON.stringify(event.data, null, 2)}
               </pre>
             )}

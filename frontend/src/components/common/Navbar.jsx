@@ -52,7 +52,7 @@ const Navbar = ({ onMenuToggle }) => {
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
           <Heart className="text-teal-600 fill-teal-600" size={26} />
           <span className="text-teal-600 font-bold text-xl tracking-tight hidden sm:block">
-            CareWatch
+            Sanjeevni
           </span>
           <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 hidden lg:inline-block border border-teal-200">
             Sanjeevni AI

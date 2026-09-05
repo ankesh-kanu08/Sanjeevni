@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center justify-center text-teal-600">
           <Heart size={64} className="fill-current text-teal-600" />
           <h2 className="mt-4 text-center text-4xl font-extrabold text-gray-900">
-            CareWatch
+            Sanjeevni
           </h2>
           <p className="mt-2 text-center text-gray-600">Post-discharge monitoring platform</p>
         </div>
@@ -97,20 +97,20 @@ export default function LoginPage() {
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Demo Credentials</h3>
               <div className="space-y-2 text-sm">
-                <button type="button" onClick={() => handleDemoClick('patient@carewatch.com', 'patient123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
-                  <span className="font-medium">Patient:</span> patient@carewatch.com
+                <button type="button" onClick={() => handleDemoClick('patient@Sanjeevni.com', 'patient123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
+                  <span className="font-medium">Patient:</span> patient@Sanjeevni.com
                 </button>
-                <button type="button" onClick={() => handleDemoClick('worker@carewatch.com', 'worker123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
-                  <span className="font-medium">Worker:</span> worker@carewatch.com
+                <button type="button" onClick={() => handleDemoClick('worker@Sanjeevni.com', 'worker123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
+                  <span className="font-medium">Worker:</span> worker@Sanjeevni.com
                 </button>
-                <button type="button" onClick={() => handleDemoClick('doctor@carewatch.com', 'doctor123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
-                  <span className="font-medium">Doctor:</span> doctor@carewatch.com
+                <button type="button" onClick={() => handleDemoClick('doctor@Sanjeevni.com', 'doctor123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
+                  <span className="font-medium">Doctor:</span> doctor@Sanjeevni.com
                 </button>
-                <button type="button" onClick={() => handleDemoClick('hospital@carewatch.com', 'hospital123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
-                  <span className="font-medium">Hospital:</span> hospital@carewatch.com
+                <button type="button" onClick={() => handleDemoClick('hospital@Sanjeevni.com', 'hospital123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
+                  <span className="font-medium">Hospital:</span> hospital@Sanjeevni.com
                 </button>
-                <button type="button" onClick={() => handleDemoClick('admin@carewatch.com', 'admin123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
-                  <span className="font-medium">Admin:</span> admin@carewatch.com
+                <button type="button" onClick={() => handleDemoClick('admin@Sanjeevni.com', 'admin123')} className="block w-full text-left px-3 py-2 hover:bg-gray-200 rounded">
+                  <span className="font-medium">Admin:</span> admin@Sanjeevni.com
                 </button>
               </div>
             </div>

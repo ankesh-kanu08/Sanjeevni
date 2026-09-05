@@ -36,15 +36,15 @@ const seedData = async () => {
     });
 
     // 2. Staff Users
-    const systemAdmin = await User.create({ name: 'System Admin', email: 'admin@carewatch.com', password: 'admin123', role: 'system_admin' });
-    const hospitalAdmin = await User.create({ name: 'Dr. Rajesh Singh', email: 'hospital@carewatch.com', password: 'hospital123', role: 'hospital_admin', hospital: hospital._id });
-    const doctor = await User.create({ name: 'Dr. Priya Sharma', email: 'doctor@carewatch.com', password: 'doctor123', role: 'doctor', hospital: hospital._id });
-    const worker = await User.create({ name: 'Sunita Devi', email: 'worker@carewatch.com', password: 'worker123', role: 'worker', hospital: hospital._id });
+    const systemAdmin = await User.create({ name: 'System Admin', email: 'admin@Sanjeevni.com', password: 'admin123', role: 'system_admin' });
+    const hospitalAdmin = await User.create({ name: 'Dr. Rajesh Singh', email: 'hospital@Sanjeevni.com', password: 'hospital123', role: 'hospital_admin', hospital: hospital._id });
+    const doctor = await User.create({ name: 'Dr. Priya Sharma', email: 'doctor@Sanjeevni.com', password: 'doctor123', role: 'doctor', hospital: hospital._id });
+    const worker = await User.create({ name: 'Sunita Devi', email: 'worker@Sanjeevni.com', password: 'worker123', role: 'worker', hospital: hospital._id });
 
     // 3. Patient Users (Varied across demographics & conditions)
-    const patientUser1 = await User.create({ name: 'Ramesh Kumar', email: 'patient@carewatch.com', password: 'patient123', role: 'patient', phone: '+91 98765 43210' });
-    const patientUser2 = await User.create({ name: 'Sunita Sharma', email: 'sunita@carewatch.com', password: 'patient123', role: 'patient', phone: '+91 98123 45678' });
-    const patientUser3 = await User.create({ name: 'Amit Patel', email: 'amit@carewatch.com', password: 'patient123', role: 'patient', phone: '+91 98234 56789' });
+    const patientUser1 = await User.create({ name: 'Ramesh Kumar', email: 'patient@Sanjeevni.com', password: 'patient123', role: 'patient', phone: '+91 98765 43210' });
+    const patientUser2 = await User.create({ name: 'Sunita Sharma', email: 'sunita@Sanjeevni.com', password: 'patient123', role: 'patient', phone: '+91 98123 45678' });
+    const patientUser3 = await User.create({ name: 'Amit Patel', email: 'amit@Sanjeevni.com', password: 'patient123', role: 'patient', phone: '+91 98234 56789' });
 
     // Dates
     const dayMinus5 = new Date(Date.now() - 5 * 86400000);

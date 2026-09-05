@@ -1,7 +1,7 @@
 {
-  "name": "carewatch-backend",
+  "name": "Sanjeevni-backend",
   "version": "1.0.0",
-  "description": "CareWatch Backend",
+  "description": "Sanjeevni Backend",
   "main": "src/server.js",
   "type": "module",
   "scripts": {

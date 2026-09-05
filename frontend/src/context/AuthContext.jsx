@@ -6,7 +6,7 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('carewatch_token') || null);
+  const [token, setToken] = useState(localStorage.getItem('Sanjeevni_token') || null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
           setUser(response.user || response);
         } catch (error) {
           console.error("Failed to authenticate token", error);
-          localStorage.removeItem('carewatch_token');
+          localStorage.removeItem('Sanjeevni_token');
           setToken(null);
           setUser(null);
         }
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.login(email, password);
       const { token: newToken, user: userData } = response;
-      localStorage.setItem('carewatch_token', newToken);
+      localStorage.setItem('Sanjeevni_token', newToken);
       setToken(newToken);
       setUser(userData);
       return userData;
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.register(data);
       const { token: newToken, user: userData } = response;
-      localStorage.setItem('carewatch_token', newToken);
+      localStorage.setItem('Sanjeevni_token', newToken);
       setToken(newToken);
       setUser(userData);
       return userData;
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('carewatch_token');
+    localStorage.removeItem('Sanjeevni_token');
     setToken(null);
     setUser(null);
     window.location.href = '/login';

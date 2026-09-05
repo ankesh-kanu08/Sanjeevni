@@ -521,7 +521,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       // Retain reference on window and ref to prevent Chrome garbage collection of utterance
       activeUtteranceRef.current = utterance;
       if (typeof window !== 'undefined') {
-        window.__carewatchUtterance = utterance;
+        window.__SanjeevniUtterance = utterance;
       }
 
       let finished = false;

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import workerService from '../services/workerService';
 
-const OFFLINE_VISITS_KEY = 'carewatch_offline_visits';
+const OFFLINE_VISITS_KEY = 'Sanjeevni_offline_visits';
 
 /**
  * Get all queued offline visits
@@ -33,7 +33,7 @@ export const saveOfflineVisit = (visitPayload) => {
     };
     queue.push(queuedItem);
     localStorage.setItem(OFFLINE_VISITS_KEY, JSON.stringify(queue));
-    window.dispatchEvent(new CustomEvent('carewatch:offline_queue_changed', { detail: { count: queue.length } }));
+    window.dispatchEvent(new CustomEvent('Sanjeevni:offline_queue_changed', { detail: { count: queue.length } }));
     return queuedItem;
   } catch (e) {
     console.error('Error saving offline visit:', e);
@@ -48,7 +48,7 @@ export const removeOfflineVisit = (localId) => {
   try {
     const queue = getOfflineVisits().filter(item => item.localId !== localId);
     localStorage.setItem(OFFLINE_VISITS_KEY, JSON.stringify(queue));
-    window.dispatchEvent(new CustomEvent('carewatch:offline_queue_changed', { detail: { count: queue.length } }));
+    window.dispatchEvent(new CustomEvent('Sanjeevni:offline_queue_changed', { detail: { count: queue.length } }));
   } catch (e) {
     console.error('Error removing offline visit:', e);
   }
@@ -124,12 +124,12 @@ export const useOfflineSync = () => {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('carewatch:offline_queue_changed', handleQueueChange);
+    window.addEventListener('Sanjeevni:offline_queue_changed', handleQueueChange);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('carewatch:offline_queue_changed', handleQueueChange);
+      window.removeEventListener('Sanjeevni:offline_queue_changed', handleQueueChange);
     };
   }, [refreshQueue]);
 

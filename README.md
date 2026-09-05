@@ -1,6 +1,6 @@
 <div align="center">
 
-# ❤️ CareWatch (Sanjeevni)
+# ❤️ Sanjeevni (Sanjeevni)
 
 ### AI-Powered Post-Discharge Monitoring & Care Coordination
 
@@ -13,7 +13,7 @@
 [![Real-time](https://img.shields.io/badge/Real--Time-Socket.IO-010101?logo=socket.io&logoColor=white)](backend/src/sockets/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[Problem](#the-problem) · [Solution](#the-carewatch-approach) · [Features](#key-features) · [Architecture](#architecture) · [Setup](#getting-started) · [Demo](#demo)**
+**[Problem](#the-problem) · [Solution](#the-Sanjeevni-approach) · [Features](#key-features) · [Architecture](#architecture) · [Setup](#getting-started) · [Demo](#demo)**
 
 </div>
 
@@ -21,9 +21,9 @@
 
 ## Overview
 
-**CareWatch (Sanjeevni)** is a post-discharge monitoring and care-coordination platform designed for rural, semi-urban, and low-literacy communities.
+**Sanjeevni (Sanjeevni)** is a post-discharge monitoring and care-coordination platform designed for rural, semi-urban, and low-literacy communities.
 
-Instead of waiting for the next hospital visit, CareWatch creates a **personal discharge baseline**, collects lightweight voice or text check-ins, analyzes changes over time, and routes concerning cases to the appropriate level of human attention.
+Instead of waiting for the next hospital visit, Sanjeevni creates a **personal discharge baseline**, collects lightweight voice or text check-ins, analyzes changes over time, and routes concerning cases to the appropriate level of human attention.
 
 The platform connects:
 
@@ -31,7 +31,7 @@ The platform connects:
 
 > ⚠️ **Clinical scope**
 >
-> CareWatch is an early-warning and care-coordination system, **not an AI doctor**. It does not independently diagnose diseases or prescribe medicines. Clinical decisions remain with qualified healthcare professionals.
+> Sanjeevni is an early-warning and care-coordination system, **not an AI doctor**. It does not independently diagnose diseases or prescribe medicines. Clinical decisions remain with qualified healthcare professionals.
 
 ---
 
@@ -49,9 +49,9 @@ Key challenges include:
 
 ---
 
-## The CareWatch Approach
+## The Sanjeevni Approach
 
-CareWatch focuses on **change over time**, rather than treating every patient with the same static threshold.
+Sanjeevni focuses on **change over time**, rather than treating every patient with the same static threshold.
 
 ```text
 Hospital Discharge
@@ -93,7 +93,7 @@ AI-Assisted Risk Prioritization
 
 ---
 
-## Why CareWatch?
+## Why Sanjeevni?
 
 | Capability | What it provides |
 |---|---|
@@ -228,7 +228,7 @@ Follow-up Monitoring
 
 # Disease-Adaptive Check-in Protocols
 
-CareWatch can organize monitoring around the patient's clinical context.
+Sanjeevni can organize monitoring around the patient's clinical context.
 
 | Protocol | Example context | Areas assessed |
 |---|---|---|
@@ -315,10 +315,10 @@ The seeded demonstration environment contains multiple roles and patient scenari
 
 | Role | Email | Password |
 |---|---|---|
-| Doctor | `doctor@carewatch.com` | `doctor123` |
-| ASHA Worker | `worker@carewatch.com` | `worker123` |
-| Hospital Admin | `hospital@carewatch.com` | `hospital123` |
-| Patient | `patient@carewatch.com` | `patient123` |
+| Doctor | `doctor@Sanjeevni.com` | `doctor123` |
+| ASHA Worker | `worker@Sanjeevni.com` | `worker123` |
+| Hospital Admin | `hospital@Sanjeevni.com` | `hospital123` |
+| Patient | `patient@Sanjeevni.com` | `patient123` |
 
 ## Recommended Demo Flow
 
@@ -551,7 +551,7 @@ http://localhost:5173
 
 # Real-Time Events
 
-CareWatch uses Socket.IO for live application updates.
+Sanjeevni uses Socket.IO for live application updates.
 
 | Event | Direction | Purpose |
 |---|---|---|
@@ -576,7 +576,7 @@ The application includes security-oriented components such as:
 
 ## Clinical Safety
 
-CareWatch follows a **human-in-the-loop** model:
+Sanjeevni follows a **human-in-the-loop** model:
 
 - AI provides monitoring and prioritization signals.
 - Patient-reported information is not treated as equivalent to a clinically verified measurement.
@@ -588,7 +588,7 @@ CareWatch follows a **human-in-the-loop** model:
 
 # Limitations
 
-CareWatch is a prototype and should be evaluated accordingly.
+Sanjeevni is a prototype and should be evaluated accordingly.
 
 - Speech recognition quality can vary with accent, environment, microphone quality, and background noise.
 - AI/risk outputs require clinical verification.
@@ -701,7 +701,7 @@ This project is released under the **MIT License**. See [`LICENSE`](LICENSE) for
 
 <div align="center">
 
-### ❤️ CareWatch — From Post-Discharge Uncertainty to Coordinated Early Intervention
+### ❤️ Sanjeevni — From Post-Discharge Uncertainty to Coordinated Early Intervention
 
 **Patient → AI → Community Health Worker → Doctor**
 

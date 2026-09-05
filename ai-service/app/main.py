@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.risk import router as risk_router
 
-app = FastAPI(title="CareWatch AI Risk Assessment Service")
+app = FastAPI(title="Sanjeevni AI Risk Assessment Service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,7 +21,7 @@ def health_check() -> dict[str, str]:
 @app.get("/")
 def root() -> dict[str, str]:
     return {
-        "service": "CareWatch AI Risk Assessment Service",
+        "service": "Sanjeevni AI Risk Assessment Service",
         "version": "1.0.0",
         "status": "running"
     }

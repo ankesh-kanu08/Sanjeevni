@@ -47,7 +47,7 @@ export default function RegisterPage() {
           <Heart size={48} className="fill-current" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Join CareWatch
+          Join Sanjeevni
         </h2>
       </div>
 

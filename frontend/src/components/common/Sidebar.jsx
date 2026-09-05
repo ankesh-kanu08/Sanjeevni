@@ -61,7 +61,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-2">
             <Heart className="text-teal-600" size={28} />
             <span className="text-teal-600 font-bold text-xl tracking-tight">
-              CareWatch
+              Sanjeevni
             </span>
           </div>
         </div>

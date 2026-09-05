@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 export const SocketContext = createContext();
 
-const NOTIFICATIONS_STORAGE_KEY = 'carewatch_notifications';
+const NOTIFICATIONS_STORAGE_KEY = 'Sanjeevni_notifications';
 
 // Web Audio synthesizer chime for alerts
 const playAlertChime = (isUrgent = false) => {

@@ -63,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded shadow-md w-96">
-        <h1 className="text-2xl font-bold text-teal-600 mb-6">CareWatch Login</h1>
+        <h1 className="text-2xl font-bold text-teal-600 mb-6">Sanjeevni Login</h1>
         <form onSubmit={handleLogin}>
           <input className="w-full border p-2 mb-4" placeholder="Email" required />
           <input className="w-full border p-2 mb-4" type="password" placeholder="Password" required />

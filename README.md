@@ -1,6 +1,6 @@
 <div align="center">
 
-# ❤️ Sanjeevni (Sanjeevni)
+#  Sanjeevni
 
 ### AI-Powered Post-Discharge Monitoring & Care Coordination
 

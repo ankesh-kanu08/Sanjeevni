@@ -1,6 +1,6 @@
 <div align="center">
 
-# ❤️ Sanjeevni (Sanjeevni)
+#  Sanjeevni
 
 ### AI-Powered Post-Discharge Monitoring & Care Coordination
 
@@ -701,7 +701,7 @@ This project is released under the **MIT License**. See [`LICENSE`](LICENSE) for
 
 <div align="center">
 
-### ❤️ Sanjeevni — From Post-Discharge Uncertainty to Coordinated Early Intervention
+###  Sanjeevni — From Post-Discharge Uncertainty to Coordinated Early Intervention
 
 **Patient → AI → Community Health Worker → Doctor**
 

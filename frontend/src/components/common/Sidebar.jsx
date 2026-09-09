@@ -2,39 +2,41 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, History, ListTodo, Bell, Users, FileOutput, Heart, LogOut } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
+import { useLanguage } from '../../context/LanguageContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   
   const getNavItems = () => {
     switch (user?.role) {
       case 'patient':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/patient/dashboard' },
-          { icon: ClipboardList, label: 'Check-in', path: '/patient/check-in' },
-          { icon: History, label: 'History', path: '/patient/history' }
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/patient/dashboard' },
+          { icon: ClipboardList, label: t('nav.checkIn'), path: '/patient/check-in' },
+          { icon: History, label: t('nav.history'), path: '/patient/history' }
         ];
       case 'worker':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/worker/dashboard' },
-          { icon: ListTodo, label: 'Tasks', path: '/worker/tasks' }
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/worker/dashboard' },
+          { icon: ListTodo, label: t('nav.tasks'), path: '/worker/tasks' }
         ];
       case 'doctor':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/doctor/dashboard' },
-          { icon: Bell, label: 'Alerts', path: '/doctor/alerts' },
-          { icon: Users, label: 'Patients', path: '/doctor/patients' }
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/doctor/dashboard' },
+          { icon: Bell, label: t('nav.alerts'), path: '/doctor/alerts' },
+          { icon: Users, label: t('nav.patients'), path: '/doctor/patients' }
         ];
       case 'hospital_admin':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/hospital/dashboard' },
-          { icon: Users, label: 'Patients', path: '/hospital/patients' },
-          { icon: FileOutput, label: 'Discharge', path: '/hospital/discharge' }
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/hospital/dashboard' },
+          { icon: Users, label: t('nav.patients'), path: '/hospital/patients' },
+          { icon: FileOutput, label: t('nav.discharge'), path: '/hospital/discharge' }
         ];
       case 'system_admin':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-          { icon: Users, label: 'Users', path: '/admin/users' }
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/admin/dashboard' },
+          { icon: Users, label: t('nav.users'), path: '/admin/users' }
         ];
       default:
         return [];
@@ -94,7 +96,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <button
               onClick={logout}
               className="text-slate-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors focus:outline-none"
-              title="Logout"
+              title={t('common.logout')}
             >
               <LogOut size={18} />
             </button>

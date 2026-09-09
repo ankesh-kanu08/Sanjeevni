@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Bell, LogOut, Menu, Radio, Check, Trash2, X, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Heart, Bell, LogOut, Menu, Radio, Check, Trash2, X, AlertTriangle, ShieldAlert, Globe } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import useSocket from '../../hooks/useSocket';
+import { useLanguage } from '../../context/LanguageContext';
 import { capitalize, formatRelativeTime } from '../../utils/formatters';
+import LanguageSelector from './LanguageSelector';
 
 const Navbar = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
+  const { language, setLanguage, availableLanguages, t } = useLanguage();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, connected } = useSocket();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -66,12 +69,12 @@ const Navbar = ({ onMenuToggle }) => {
           {connected ? (
             <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
-              Real-time Active
+              {t('common.realtimeActive') || 'Real-time Active'}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
               <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-              Reconnecting
+              {t('common.reconnecting') || 'Reconnecting'}
             </span>
           )}
         </div>
@@ -173,6 +176,9 @@ const Navbar = ({ onMenuToggle }) => {
           )}
         </div>
 
+        {/* Multilingual Selector in Navbar */}
+        <LanguageSelector compact={true} />
+
         {/* User Badge and Logout */}
         <div className="flex items-center gap-4 border-l border-slate-200 pl-4 sm:pl-6">
           <div className="hidden md:flex flex-col items-end">
@@ -184,7 +190,7 @@ const Navbar = ({ onMenuToggle }) => {
           <button
             onClick={logout}
             className="text-slate-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50 focus:outline-none"
-            title="Logout"
+            title={t('common.logout')}
           >
             <LogOut size={20} />
           </button>

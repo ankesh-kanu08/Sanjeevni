@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronDown, ChevronUp, Mic, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
+import { useLanguage } from '../../context/LanguageContext';
 import patientService from '../../services/patientService';
 import useSpeechRecognition from '../../hooks/useSpeechRecognition';
 
@@ -10,6 +11,7 @@ const SYMPTOMS = ['Breathlessness', 'Fever', 'Pain', 'Cough', 'Fatigue', 'Dizzin
 
 export default function PatientCheckIn() {
   const { user } = useAuth();
+  const { language: currentLang, speechLocale } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -30,7 +32,7 @@ export default function PatientCheckIn() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [patientId, setPatientId] = useState(null);
-  const [language, setLanguage] = useState('en-IN');
+  const [language, setLanguage] = useState(speechLocale || (currentLang === 'hi' ? 'hi-IN' : 'en-IN'));
   const [extracting, setExtracting] = useState(false);
 
   const applyExtractedSymptoms = useCallback(async (text) => {

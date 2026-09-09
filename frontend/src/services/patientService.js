@@ -44,6 +44,10 @@ const patientService = {
   getCheckInProtocol: async (id) => {
     const response = await api.get(`/patients/${id || 'me'}/checkin-protocol`);
     return response.data;
+  },
+  updateLanguage: async (language) => {
+    const response = await api.put('/patients/me/language', { language });
+    return response.data;
   }
 };
 

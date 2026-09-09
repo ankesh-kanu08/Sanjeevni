@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Volume2, VolumeX, RefreshCw, CheckCircle2, X, Sparkles, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Mic, Volume2, VolumeX, RefreshCw, CheckCircle2, X, Sparkles, Send, AlertTriangle, ShieldCheck, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../context/LanguageContext';
+import { getAvailableLanguages, getLanguageConfig } from '../../i18n/languages';
+import { REGIONAL_QUESTIONS, getLocalizedUIStrings, getRegionalQuestionText } from '../../i18n/regionalQuestions';
 import patientService from '../../services/patientService';
 import { extractSymptomsClientSide } from './VoiceCheckInModal';
+import { findBestVoice, stopSpeechSynthesis, getSpeechPayload, ensureVoicesLoaded } from '../../utils/speechUtils';
+import LanguageSelector from '../common/LanguageSelector';
 
 // Explicit conversation lifecycle states
 export const ConversationState = {
@@ -86,6 +91,36 @@ export const classifyDiseaseCategory = (diagnosis, comorbidities = []) => {
   return 'GENERAL';
 };
 
+// Helper to enrich questions with all regional language translations
+const enrichQuestionBank = (category, questions, patientName) => {
+  const allLangs = ['hi', 'en', 'ml', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'pa', 'or'];
+  const enriched = {};
+  const regionalCat = REGIONAL_QUESTIONS[category] || REGIONAL_QUESTIONS.GENERAL || {};
+
+  for (const [qId, qObj] of Object.entries(questions)) {
+    const regionalData = regionalCat[qId] || {};
+    const textMap = { ...(qObj.text || {}) };
+
+    for (const lang of allLangs) {
+      if (regionalData[lang]) {
+        textMap[lang] = typeof regionalData[lang] === 'function' ? regionalData[lang](patientName) : regionalData[lang];
+      } else if (!textMap[lang]) {
+        textMap[lang] = textMap.hi || textMap.en || '';
+      }
+    }
+
+    enriched[qId] = {
+      ...qObj,
+      text: textMap
+    };
+  }
+  return enriched;
+};
+
+const getEnrichedProtocolName = (category, fallback) => {
+  return REGIONAL_QUESTIONS[category]?.protocolName || fallback;
+};
+
 // Trained Disease-Specific Clinical Question Protocols
 export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '', comorbidities = []) => {
   const category = classifyDiseaseCategory(diagnosis, comorbidities);
@@ -145,12 +180,12 @@ export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '',
     return {
       category: 'RESPIRATORY',
       diagnosis: diagnosis || 'Pneumonia / Respiratory',
-      protocolName: {
+      protocolName: getEnrichedProtocolName('RESPIRATORY', {
         hi: 'निमोनिया एवं श्वसन जांच (Respiratory Protocol)',
         en: 'Pneumonia & Respiratory Protocol'
-      },
+      }),
       questionIds: ['resp_001_greeting', 'resp_002_breathlessness', 'resp_003_cough_phlegm', 'resp_004_fever_vitals', 'resp_005_medication', 'resp_006_closing'],
-      questionsBank: questions
+      questionsBank: enrichQuestionBank('RESPIRATORY', questions, name)
     };
   }
 
@@ -208,12 +243,12 @@ export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '',
     return {
       category: 'CARDIAC',
       diagnosis: diagnosis || 'Congestive Heart Failure',
-      protocolName: {
+      protocolName: getEnrichedProtocolName('CARDIAC', {
         hi: 'हृदय विफलता एवं सूजन जांच (Cardiac Protocol)',
         en: 'Heart Failure & Cardiac Protocol'
-      },
+      }),
       questionIds: ['card_001_greeting', 'card_002_edema', 'card_003_orthopnea', 'card_004_vitals_palpitation', 'card_005_medication_fluids', 'card_006_closing'],
-      questionsBank: questions
+      questionsBank: enrichQuestionBank('CARDIAC', questions, name)
     };
   }
 
@@ -271,12 +306,12 @@ export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '',
     return {
       category: 'POST_SURGICAL',
       diagnosis: diagnosis || 'Post-Surgical Recovery',
-      protocolName: {
+      protocolName: getEnrichedProtocolName('POST_SURGICAL', {
         hi: 'सर्जरी पश्चात स्वास्थ्य एवं टांका जांच (Post-Surgical Protocol)',
         en: 'Post-Surgical & Wound Protocol'
-      },
+      }),
       questionIds: ['surg_001_greeting', 'surg_002_incision_pain', 'surg_003_fever', 'surg_004_diet_bowel', 'surg_005_medication', 'surg_006_closing'],
-      questionsBank: questions
+      questionsBank: enrichQuestionBank('POST_SURGICAL', questions, name)
     };
   }
 
@@ -334,12 +369,12 @@ export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '',
     return {
       category: 'METABOLIC_RENAL',
       diagnosis: diagnosis || 'Diabetes & Metabolic Care',
-      protocolName: {
+      protocolName: getEnrichedProtocolName('METABOLIC_RENAL', {
         hi: 'मधुमेह एवं मेटाबॉलिक जांच (Metabolic Protocol)',
         en: 'Diabetes & Metabolic Care Protocol'
-      },
+      }),
       questionIds: ['meta_001_greeting', 'meta_002_hypoglycemia_dizziness', 'meta_003_feet_wounds', 'meta_004_vitals_urination', 'meta_005_medication', 'meta_006_closing'],
-      questionsBank: questions
+      questionsBank: enrichQuestionBank('METABOLIC_RENAL', questions, name)
     };
   }
 
@@ -397,18 +432,20 @@ export const getDiseaseProtocol = (patientName = 'मरीज', diagnosis = '',
   return {
     category: 'GENERAL',
     diagnosis: diagnosis || 'General Medical Recovery',
-    protocolName: {
+    protocolName: getEnrichedProtocolName('GENERAL', {
       hi: 'सामान्य स्वास्थ्य देखभाल जांच (Standard Protocol)',
       en: 'Standard Post-Discharge Recovery Protocol'
-    },
+    }),
     questionIds: ['gen_001_greeting', 'gen_002_breathlessness', 'gen_003_fever_pain', 'gen_004_worsening', 'gen_005_medication', 'gen_006_closing'],
-    questionsBank: questions
+    questionsBank: enrichQuestionBank('GENERAL', questions, name)
   };
 };
 
 export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onCompleted }) {
-  // Session level language state: 'hi' | 'en'
-  const [selectedLanguage, setSelectedLanguage] = useState('hi');
+  const { language: contextLang, setLanguage: setContextLang, t } = useLanguage();
+  // Session level language state: 'hi' | 'en' initialized from patient record or global context
+  const initialLanguage = patient?.preferredLanguage || contextLang || 'hi';
+  const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage);
   const [conversationState, setConversationState] = useState(ConversationState.IDLE);
   const [messages, setMessages] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -421,7 +458,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
   const [muted, setMuted] = useState(false);
 
   // Guards & Locks
-  const selectedLanguageRef = useRef('hi');
+  const selectedLanguageRef = useRef(initialLanguage);
   const sessionActiveRef = useRef(false);
   const isAdvancingRef = useRef(false);
   const isProcessingRef = useRef(false);
@@ -435,6 +472,8 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
   const sessionIdRef = useRef(null);
   const initializedSessionRef = useRef(false);
   const activeUtteranceRef = useRef(null);
+  const sessionStartTimeRef = useRef(null);
+  const conversationResponsesRef = useRef([]);
 
   const recognitionInstanceRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -442,7 +481,42 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
   const patientName = patient?.user?.name || patient?.name || 'मरीज';
   const diagnosis = patient?.diagnosis || patient?.dischargeRecord?.diagnosis || '';
   const comorbidities = patient?.comorbidities || [];
-  const localized = LOCALIZED_STRINGS[selectedLanguage] || LOCALIZED_STRINGS.hi;
+
+  const regionalUI = getLocalizedUIStrings(selectedLanguage) || {};
+
+  // Localized strings with fallback
+  const localized = {
+    modalTitle: regionalUI.modalTitle || t('voiceAssistant.modalTitle') || 'AI Voice Health Check-in',
+    modalSubtitle: regionalUI.modalSubtitle || t('voiceAssistant.modalSubtitle') || 'Sanjeevni Healthcare Companion',
+    speakingStatus: regionalUI.speakingStatus || t('voiceAssistant.speakingStatus') || 'Sanjeevni AI is speaking...',
+    listeningStatus: regionalUI.listeningStatus || t('voiceAssistant.listeningStatus') || 'Listening...',
+    processingStatus: regionalUI.processingStatus || t('voiceAssistant.processingStatus') || 'Processing your response...',
+    completedStatus: regionalUI.completedStatus || t('voiceAssistant.completedStatus') || 'Your health check-in is complete.',
+    waitingPrompt: regionalUI.noSpeechPrompt || t('voiceAssistant.waitingPrompt') || "I didn't catch that. Please speak again or type your answer below.",
+    tapToSpeak: regionalUI.tapToSpeak || t('voiceAssistant.tapToSpeak') || 'Tap to Speak',
+    tapToInterrupt: regionalUI.tapToInterrupt || t('voiceAssistant.tapToInterrupt') || 'Tap to Interrupt & Speak',
+    repeatBtn: regionalUI.repeatBtn || t('voiceAssistant.repeatBtn') || 'Repeat Question',
+    endCheckinBtn: regionalUI.endCheckinBtn || t('voiceAssistant.endCheckinBtn') || 'End Check-in',
+    viewSummaryBtn: regionalUI.viewSummaryBtn || t('voiceAssistant.viewSummaryBtn') || 'View Summary',
+    closeBtn: regionalUI.closeBtn || t('voiceAssistant.closeBtn') || 'Close',
+    detectedSymptomsTitle: regionalUI.detectedSymptomsTitle || t('voiceAssistant.detectedSymptomsTitle') || 'Detected Health Observations:',
+    medicationLabel: regionalUI.medicationLabel || t('voiceAssistant.medicationLabel') || 'Medications:',
+    medsTaken: regionalUI.medsTaken || t('voiceAssistant.medsTaken') || 'Taken as prescribed',
+    medsMissed: regionalUI.medsMissed || t('voiceAssistant.medsMissed') || 'Missed / Not taken',
+    noSpeechPrompt: regionalUI.noSpeechPrompt || t('voiceAssistant.noSpeechPrompt') || "I couldn't understand your response. Please try again.",
+    finalReassurance: regionalUI.finalReassurance || t('voiceAssistant.finalReassurance') || 'Your health check-in is complete. The information you provided has been securely recorded for further review.',
+    riskEvaluatedText: regionalUI.riskEvaluatedText || t('voiceAssistant.riskEvaluatedText') || 'Clinical risk evaluation completed',
+    summaryTitle: regionalUI.summaryTitle || t('voiceAssistant.summaryTitle') || 'Health Assessment Summary',
+    textFallbackPlaceholder: regionalUI.textFallbackPlaceholder || t('voiceAssistant.textFallbackPlaceholder') || 'Type your response here (or speak above)...',
+    errors: {
+      micDenied: t('voiceAssistant.errors.micDenied') || 'Microphone access is required.',
+      notUnderstood: regionalUI.noSpeechPrompt || t('voiceAssistant.errors.notUnderstood') || "I couldn't understand your response. Please try again.",
+      unsupported: t('voiceAssistant.errors.unsupported') || 'Voice input is unavailable on this browser.',
+      serviceUnavailable: t('voiceAssistant.errors.serviceUnavailable') || 'Voice service is currently unavailable.',
+      saveFailed: t('voiceAssistant.errors.saveFailed') || 'Failed to record check-in. Please try again.'
+    }
+  };
+
   const activeProtocol = getDiseaseProtocol(patientName, diagnosis, comorbidities);
   const questionsBank = activeProtocol.questionsBank;
 
@@ -480,7 +554,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
 
   // Text-To-Speech associated strictly with question ID and explicit language support
   const speakQuestion = useCallback((questionObj, languageOverride = null) => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       if (!sessionActiveRef.current || muted || typeof window === 'undefined' || !window.speechSynthesis) {
         resolve();
         return;
@@ -488,7 +562,21 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
 
       const qId = questionObj.id;
       const targetLang = languageOverride || selectedLanguageRef.current || 'hi';
-      const textToSpeak = questionObj.text[targetLang] || questionObj.text.en || questionObj.text.hi;
+
+      // Ensure browser voices are loaded before choosing voice
+      await ensureVoicesLoaded();
+
+      const payload = getSpeechPayload({
+        category: activeProtocol.category,
+        questionId: qId,
+        langCode: targetLang,
+        patientName,
+        nativeTextMap: questionObj.text || {}
+      });
+
+      const textToSpeak = payload.textToSpeak || questionObj.text?.[targetLang] || questionObj.text?.en || '';
+      const voiceToUse = payload.voice;
+      const localeToUse = payload.locale;
 
       // Stop any running speech/mic
       stopAllSpeechAndRecognition();
@@ -503,20 +591,13 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       }
 
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      const targetLocale = targetLang === 'hi' ? 'hi-IN' : 'en-IN';
-      utterance.lang = targetLocale;
-      utterance.rate = 0.92;
+      utterance.lang = localeToUse;
+      utterance.rate = (targetLang === 'hi' || targetLang === 'en') ? 0.92 : 0.88;
       utterance.pitch = 1.05;
 
-      const voices = window.speechSynthesis.getVoices();
-      let targetVoice = null;
-      if (targetLang === 'hi') {
-        targetVoice = voices.find(v => v.lang === 'hi-IN' || v.lang.startsWith('hi'));
-      } else {
-        targetVoice = voices.find(v => v.lang === 'en-IN') ||
-                     voices.find(v => v.lang.startsWith('en'));
+      if (voiceToUse) {
+        utterance.voice = voiceToUse;
       }
-      if (targetVoice) utterance.voice = targetVoice;
 
       // Retain reference on window and ref to prevent Chrome garbage collection of utterance
       activeUtteranceRef.current = utterance;
@@ -525,9 +606,12 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       }
 
       let finished = false;
+      let watchdogTimer = null;
+
       const finishSpeech = () => {
         if (finished) return;
         finished = true;
+        if (watchdogTimer) clearTimeout(watchdogTimer);
         isSpeakingRef.current = false;
         currentSpeakingQuestionIdRef.current = null;
         activeUtteranceRef.current = null;
@@ -537,17 +621,30 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       utterance.onend = finishSpeech;
       utterance.onerror = finishSpeech;
 
-      // Dynamic safety timeout based on text length: ~2 words/sec + 2.5s buffer
-      const wordCount = (textToSpeak || '').split(/\s+/).length;
-      const timeoutMs = Math.max(3500, Math.min(12000, (wordCount / 2.2) * 1000 + 2500));
-      const safetyTimer = setTimeout(() => {
-        finishSpeech();
-      }, timeoutMs);
+      // Dynamic safety timeout with boundary tracker to prevent premature speech cutoff
+      const timeoutMs = Math.max(12000, Math.min(45000, (textToSpeak || '').length * 110 + 6000));
+      const resetWatchdog = () => {
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+        watchdogTimer = setTimeout(() => {
+          if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+            // Still actively speaking, grant extra time
+            resetWatchdog();
+            return;
+          }
+          finishSpeech();
+        }, timeoutMs);
+      };
+
+      utterance.onboundary = () => {
+        resetWatchdog();
+      };
+
+      resetWatchdog();
 
       // Short 60ms delay after cancel before speak avoids Chrome queue lock
       setTimeout(() => {
         if (!sessionActiveRef.current || !isSpeakingRef.current) {
-          clearTimeout(safetyTimer);
+          if (watchdogTimer) clearTimeout(watchdogTimer);
           finishSpeech();
           return;
         }
@@ -558,12 +655,12 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
           window.speechSynthesis.speak(utterance);
         } catch (err) {
           console.warn('[VoiceAssistant] Speech synthesis speak error:', err);
-          clearTimeout(safetyTimer);
+          if (watchdogTimer) clearTimeout(watchdogTimer);
           finishSpeech();
         }
       }, 60);
     });
-  }, [muted, stopAllSpeechAndRecognition]);
+  }, [muted, stopAllSpeechAndRecognition, activeProtocol.category, patientName]);
 
   // Speech Recognition with single-instance and transcript deduplication
   const startListeningToPatient = useCallback((languageOverride = null) => {
@@ -586,7 +683,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = targetLang === 'hi' ? 'hi-IN' : 'en-IN';
+      recognition.lang = getLanguageConfig(targetLang)?.speechLocale || (targetLang === 'hi' ? 'hi-IN' : 'en-IN');
       recognitionInstanceRef.current = recognition;
 
       let finalTranscript = '';
@@ -659,10 +756,16 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
         .join('\n');
 
       const currentLang = selectedLanguageRef.current || selectedLanguage;
+      const completedAt = new Date().toISOString();
+      const startedAt = sessionStartTimeRef.current || completedAt;
+
       const payload = {
         rawInput: fullDialogue,
         channel: 'voice',
         language: currentLang,
+        startedAt,
+        completedAt,
+        responses: conversationResponsesRef.current,
         mood: finalMood || 'okay',
         structuredSymptoms: finalSymptoms.map(s => ({
           name: s.name,
@@ -750,6 +853,24 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
           updatedMood = 'bad';
           setOverallMood('bad');
         }
+
+        // Record turn response with original language provenance
+        if (currentQuestionIdRef.current) {
+          const activeQ = questionsBank[currentQuestionIdRef.current];
+          const currLang = selectedLanguageRef.current || selectedLanguage;
+          const qText = activeQ?.text?.[currLang] || activeQ?.text?.en || activeQ?.text?.hi || '';
+          conversationResponsesRef.current.push({
+            questionId: currentQuestionIdRef.current,
+            questionText: qText,
+            language: currLang,
+            response: cleanAnswer,
+            structuredSymptoms: detected
+          });
+        }
+
+        // Realistic clinical AI engine processing pause (~1.9 seconds)
+        // Provides realistic cognitive feedback so the patient sees the AI engine analyzing their speech
+        await new Promise(resolve => setTimeout(resolve, 1900));
       }
 
       if (!sessionActiveRef.current || requestId !== currentRequestIdRef.current) {
@@ -790,7 +911,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       setConversationState(ConversationState.ASKING);
 
       // Append assistant message in active language
-      const localizedQuestionText = nextQuestion.text[currentLang] || nextQuestion.text.hi;
+      const localizedQuestionText = nextQuestion.text?.[currentLang] || nextQuestion.text?.en || nextQuestion.text?.hi || '';
       const assistantMessage = {
         id: `msg_ai_${nextQuestion.id}`,
         role: 'assistant',
@@ -850,6 +971,14 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
     finalizeCheckIn
   ]);
 
+  // Sync language with global context when modal is closed
+  useEffect(() => {
+    if (!isOpen && contextLang && contextLang !== selectedLanguage) {
+      setSelectedLanguage(contextLang);
+      selectedLanguageRef.current = contextLang;
+    }
+  }, [contextLang, isOpen, selectedLanguage]);
+
   // Initialize session safely (React StrictMode protected)
   useEffect(() => {
     if (!isOpen) {
@@ -870,7 +999,13 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
       conversationTurnIdRef.current = 0;
       currentRequestIdRef.current = 0;
       isAdvancingRef.current = false;
-      selectedLanguageRef.current = selectedLanguage;
+
+      const activeLang = contextLang || patient?.preferredLanguage || selectedLanguage || 'hi';
+      selectedLanguageRef.current = activeLang;
+      setSelectedLanguage(activeLang);
+
+      sessionStartTimeRef.current = new Date().toISOString();
+      conversationResponsesRef.current = [];
 
       setMessages([]);
       setCollectedSymptoms([]);
@@ -903,12 +1038,16 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
     // Update state & ref synchronously
     selectedLanguageRef.current = newLang;
     setSelectedLanguage(newLang);
+    // Sync with global language context and save to backend patient record
+    if (setContextLang) {
+      setContextLang(newLang, true);
+    }
 
     // If a question is already active, re-render it in the new language and speak
     if (currentQuestionIdRef.current) {
       const activeQ = questionsBank[currentQuestionIdRef.current];
       if (activeQ) {
-        const localizedQuestionText = activeQ.text[newLang] || activeQ.text.hi;
+        const localizedQuestionText = activeQ.text?.[newLang] || activeQ.text?.en || activeQ.text?.hi || '';
         setCurrentQuestion(activeQ);
 
         // Update message text for the current question without creating a duplicate
@@ -1040,27 +1179,15 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* Language Switcher */}
-            <div className="flex bg-slate-100 p-0.5 rounded-full text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => handleLanguageChange('hi')}
-                className={`px-2.5 py-1 rounded-full transition-all ${
-                  selectedLanguage === 'hi' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                {localized.langToggleHi}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLanguageChange('en')}
-                className={`px-2.5 py-1 rounded-full transition-all ${
-                  selectedLanguage === 'en' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                {localized.langToggleEn}
-              </button>
-            </div>
+            {/* Multilingual Selector Dropdown */}
+            <LanguageSelector
+              compact={true}
+              disabled={
+                conversationState === ConversationState.SPEAKING ||
+                conversationState === ConversationState.PROCESSING
+              }
+              onChange={(newLang) => handleLanguageChange(newLang)}
+            />
 
             {/* Close Button */}
             <button
@@ -1078,7 +1205,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
           <div className="flex items-center gap-2 font-bold text-teal-900">
             <span className="p-1 bg-white rounded-md shadow-2xs text-teal-700 text-xs">🩺</span>
             <span className="truncate max-w-[280px] sm:max-w-none">
-              {activeProtocol.protocolName[selectedLanguage] || activeProtocol.protocolName.hi}
+              {activeProtocol.protocolName?.[selectedLanguage] || activeProtocol.protocolName?.hi || activeProtocol.protocolName?.en}
             </span>
           </div>
           <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-teal-100/90 text-teal-800 border border-teal-200/80 shrink-0">
@@ -1163,7 +1290,7 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
                 onClick={handleTapToSpeak}
                 className="mt-1.5 text-xs text-teal-700 hover:text-teal-900 font-semibold underline cursor-pointer"
               >
-                {selectedLanguage === 'hi' ? 'रोकें और तुरंत बोलें (Tap to interrupt & speak)' : 'Tap to interrupt & speak'}
+                {localized.tapToInterrupt}
               </button>
             )}
 
@@ -1202,6 +1329,22 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
                 )}
               </div>
             ))}
+            {conversationState === ConversationState.PROCESSING && (
+              <div className="flex gap-2 justify-start items-center animate-in fade-in duration-200">
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs">
+                  AI
+                </span>
+                <div className="px-3.5 py-2 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200/80 rounded-tl-none shadow-xs flex items-center gap-2">
+                  <RefreshCw size={13} className="animate-spin text-amber-600" />
+                  <span className="font-semibold text-xs text-amber-950">{localized.processingStatus}</span>
+                  <span className="flex gap-1 items-center ml-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" />
+                  </span>
+                </div>
+              </div>
+            )}
             <div ref={chatScrollRef} />
           </div>
 
@@ -1298,10 +1441,10 @@ export default function RuralVoiceAssistantModal({ isOpen, onClose, patient, onC
                     ? 'bg-red-600 text-white ring-2 ring-red-300 animate-pulse'
                     : 'bg-teal-600 hover:bg-teal-700 text-white'
                 }`}
-                title={selectedLanguage === 'hi' ? 'माइक चालू करें और बोलें' : 'Turn on mic and speak'}
+                title={localized.tapToSpeak}
               >
                 <Mic size={14} />
-                <span>{selectedLanguage === 'hi' ? 'बोलें (Tap to Speak)' : 'Tap to Speak'}</span>
+                <span>{localized.tapToSpeak}</span>
               </button>
               <button
                 type="button"

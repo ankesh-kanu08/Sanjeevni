@@ -26,6 +26,11 @@ const patientSchema = new mongoose.Schema({
   currentRiskScore: { type: Number, default: 0 },
   latestAssessment: { type: mongoose.Schema.Types.ObjectId, ref: 'RiskAssessment' },
   dischargeRecord: { type: mongoose.Schema.Types.ObjectId, ref: 'DischargeRecord' },
+  preferredLanguage: {
+    type: String,
+    enum: ['hi', 'en', 'ml', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'pa', 'or'],
+    default: 'hi'
+  },
   lastCheckIn: Date
 }, { timestamps: true });
 

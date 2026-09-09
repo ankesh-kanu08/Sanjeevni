@@ -37,6 +37,34 @@ export const getMyPatientRecord = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Update preferred language for currently logged-in patient
+ */
+export const updateMyLanguage = async (req, res, next) => {
+  try {
+    const { language } = req.body;
+    const allowed = ['hi', 'en', 'ml', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'pa', 'or'];
+    if (!language || !allowed.includes(language)) {
+      return res.status(400).json({ success: false, message: 'Invalid or unsupported language specified' });
+    }
+
+    const patient = await Patient.findOneAndUpdate(
+      { user: req.user._id },
+      { preferredLanguage: language },
+      { new: true }
+    );
+
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient record not found' });
+    }
+
+    res.status(200).json({ success: true, data: { preferredLanguage: patient.preferredLanguage } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Create a new patient
  */

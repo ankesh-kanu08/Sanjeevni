@@ -64,6 +64,7 @@ const DoctorPatientDetail = () => {
           gender: patient.demographics?.gender || 'Male',
           location: patient.demographics?.location || 'Rural',
           diagnosis: patient.diagnosis || 'Pneumonia', 
+          preferredLanguage: patient.preferredLanguage || 'hi',
           dischargeDate: patient.dischargeDate, 
           followUpDate: patient.followUpDate,
           riskScore: normalizedScore, 
@@ -179,6 +180,9 @@ const DoctorPatientDetail = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{info.name}</h1>
               <span className="text-xs sm:text-sm font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
                 {info.age}y • {info.gender} • {info.location}
+              </span>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                🌐 {info.preferredLanguage === 'hi' ? 'हिन्दी (Hindi)' : 'English'}
               </span>
             </div>
             
@@ -486,6 +490,11 @@ const DoctorPatientDetail = () => {
                   <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                     Channel: Automated Rural Voice Assistant
                   </span>
+                  {obs.data?.language && (
+                    <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      {obs.data.language === 'hi' ? '🇮🇳 हिन्दी' : '🌐 English'}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

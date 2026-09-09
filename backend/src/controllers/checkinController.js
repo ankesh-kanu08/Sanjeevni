@@ -30,6 +30,22 @@ export const submitCheckIn = async (req, res, next) => {
     patientId = patientDoc._id;
     const payload = { ...req.body };
 
+    // Normalize and validate language
+    const SUPPORTED_LANGUAGES = ['hi', 'en', 'ml', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'pa', 'or'];
+    if (!payload.language || !SUPPORTED_LANGUAGES.includes(payload.language)) {
+      payload.language = patientDoc.preferredLanguage || 'hi';
+    }
+
+    if (Array.isArray(payload.responses)) {
+      payload.responses = payload.responses.map(r => ({
+        questionId: r.questionId || '',
+        questionText: r.questionText || '',
+        language: SUPPORTED_LANGUAGES.includes(r.language) ? r.language : payload.language,
+        response: r.response || '',
+        structuredSymptoms: Array.isArray(r.structuredSymptoms) ? r.structuredSymptoms : []
+      }));
+    }
+
     // Normalize mood enum
     const moodMap = {
       better: 'good',

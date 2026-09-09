@@ -28,6 +28,16 @@ const hospitalService = {
   getHospitals: async () => {
     const response = await api.get('/hospital/hospitals');
     return unwrap(response) || [];
+  },
+  extractDocument: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/hospital/extract-document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
   }
 };
 

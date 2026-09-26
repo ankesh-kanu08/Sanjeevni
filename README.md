@@ -670,6 +670,135 @@ AI_SERVICE_URL=http://localhost:8000
 
 ---
 
+# Production Deployment
+
+Sanjeevani is engineered for cloud production with a decoupled microservice architecture:
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│                     Vercel (Frontend)                   │
+│        React 18 + Vite (SPA) at https://<app>.vercel.app│
+└────────────────────────────┬────────────────────────────┘
+                             │ HTTPS / WSS
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│                     Render (Backend)                    │
+│      Node.js Express + Socket.IO on port 5000 / $PORT   │
+└──────────────┬──────────────────────────┬───────────────┘
+               │                          │
+               │ Private / Internal HTTP  │ Mongoose Driver (TLS)
+               ▼                          ▼
+┌──────────────────────────────┐   ┌──────────────────────┐
+│       Render (AI Service)    │   │    MongoDB Atlas     │
+│ Python 3.12 FastAPI on $PORT │   │ Cloud Database Clust.│
+└──────────────────────────────┘   └──────────────────────┘
+```
+
+> **Security Note:** The browser interacts exclusively with the Node.js backend. The Python AI microservice is private and never directly exposed to the public internet or browser clients.
+
+---
+
+## 1. Cloud Database (MongoDB Atlas)
+
+1. Create a free M0 cluster or dedicated cluster on [MongoDB Atlas](https://www.mongodb.com/atlas).
+2. In **Network Access**, add `0.0.0.0/0` (Allow Access from Anywhere) or Render's outbound IP addresses.
+3. In **Database Access**, create a user with read/write privileges.
+4. Copy the connection string:
+   ```text
+   mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/sanjeevani?retryWrites=true&w=majority
+   ```
+
+---
+
+## 2. Deploy Services on Render
+
+### Option A: Render Blueprint (1-Click Infrastructure as Code)
+
+1. Push your repository to GitHub.
+2. In the [Render Dashboard](https://dashboard.render.com), click **New +** → **Blueprint**.
+3. Connect your GitHub repository. Render will automatically detect `render.yaml`.
+4. Fill in the required environment variables:
+   - `MONGODB_URI`: Your MongoDB Atlas connection string.
+   - `CLIENT_URL`: Your Vercel frontend URL (e.g. `https://sanjeevani-app.vercel.app`).
+5. Click **Apply**. Both `sanjeevani-ai` and `sanjeevani-backend` will be provisioned and connected automatically.
+
+---
+
+### Option B: Manual Setup on Render
+
+#### Step 1: Deploy AI Microservice (`sanjeevani-ai`)
+1. In Render, select **New +** → **Web Service**.
+2. Connect your repo and set:
+   - **Name:** `sanjeevani-ai`
+   - **Root Directory:** `ai-service`
+   - **Language:** `Python`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Health Check Path:** `/health`
+3. Environment Variables:
+   - `PORT`: `8000`
+   - `HOST`: `0.0.0.0`
+   - `ENV`: `production`
+4. Click **Deploy Web Service** and note down the service URL (e.g. `https://sanjeevani-ai.onrender.com` or internal DNS `http://sanjeevani-ai:8000`).
+
+#### Step 2: Deploy Node Backend (`sanjeevani-backend`)
+1. In Render, select **New +** → **Web Service**.
+2. Connect your repo and set:
+   - **Name:** `sanjeevani-backend`
+   - **Root Directory:** `backend`
+   - **Language:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/health`
+3. Environment Variables:
+   - `NODE_ENV`: `production`
+   - `PORT`: `5000`
+   - `MONGODB_URI`: `mongodb+srv://<username>:<password>@cluster0...`
+   - `JWT_SECRET`: `<secure-random-32-char-string>`
+   - `CLIENT_URL`: `https://your-sanjeevni-app.vercel.app`
+   - `AI_SERVICE_URL`: `https://sanjeevani-ai.onrender.com` (or `http://sanjeevani-ai:8000` if in same Render project)
+4. (Optional) Run database seed: open Render Shell for backend and execute `npm run seed`.
+
+---
+
+## 3. Deploy Frontend on Vercel
+
+1. In the [Vercel Dashboard](https://vercel.com/new), import your GitHub repository.
+2. Configure project settings:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** `Vite`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. In **Environment Variables**, add:
+   | Variable | Value | Description |
+   |---|---|---|
+   | `VITE_API_URL` | `https://sanjeevani-backend.onrender.com/api` | Render backend API endpoint |
+   | `VITE_SOCKET_URL` | `https://sanjeevani-backend.onrender.com` | Render backend root for real-time WebSocket alerts |
+4. Click **Deploy**. Vercel uses `frontend/vercel.json` to handle client-side Single Page Application (SPA) routing for all patient/doctor/hospital paths.
+
+---
+
+## 4. Verification & Health Checks
+
+Once deployed, verify that all three tiers are communicating:
+
+- **AI Service Health:**
+  ```bash
+  curl -I https://sanjeevani-ai.onrender.com/health
+  # Expected: HTTP 200 {"status":"ok","service":"sanjeevani-ai","version":"1.0.0"}
+  ```
+
+- **Backend Health (with DB connectivity check):**
+  ```bash
+  curl -I https://sanjeevani-backend.onrender.com/health
+  # Expected: HTTP 200 {"status":"ok","service":"sanjeevani-backend","database":"connected"}
+  ```
+
+- **Frontend Application:**
+  Visit `https://your-sanjeevni-app.vercel.app` in your browser. Log in as patient, doctor, hospital, or ASHA worker. Notice that all API calls route to the Render backend with valid CORS headers, and real-time Socket.IO alerts connect seamlessly.
+
+---
+
 # Contributing
 
 Contributions are welcome.

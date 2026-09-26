@@ -10,6 +10,7 @@ import { createAlert } from './alertService.js';
 import { addEvent } from './timelineService.js';
 import { emitRiskUpdate } from '../sockets/index.js';
 import { RISK_LEVELS, ALERT_TYPES } from '../config/constants.js';
+import { getAiServiceUrl } from '../config/aiService.js';
 
 const EMPTY_VITALS = { spo2: null, heartRate: null, temperature: null, bloodPressure: null, respiratoryRate: null };
 
@@ -162,7 +163,7 @@ export const assessRisk = async (patientId, triggeredBy = 'automated') => {
 
   let result;
   try {
-    const response = await axios.post(`${process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000'}/api/analyze`, payload, { timeout: 3500 });
+    const response = await axios.post(`${getAiServiceUrl()}/api/analyze`, payload, { timeout: 3500 });
     result = response.data;
   } catch (error) {
     console.warn(`AI service unavailable (${error.message}); using canonical clinical safety rules.`);

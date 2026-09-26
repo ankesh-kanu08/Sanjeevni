@@ -19,7 +19,11 @@ app.include_router(voice_agent_router, prefix="/api")
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
-    return {"status": "healthy"}
+    return {
+        "status": "ok",
+        "service": "sanjeevani-ai",
+        "version": "1.0.0"
+    }
 
 @app.get("/")
 def root() -> dict[str, str]:

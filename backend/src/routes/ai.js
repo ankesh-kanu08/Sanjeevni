@@ -1,9 +1,8 @@
 import express from 'express';
 import axios from 'axios';
+import { getAiServiceUrl } from '../config/aiService.js';
 
 const router = express.Router();
-
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
 
 // In-memory idempotency cache for duplicate turn prevention
 // Maps `${sessionId}:${turnId}` -> responseData
@@ -51,7 +50,7 @@ router.post('/voice-checkin/turn', async (req, res, next) => {
     let aiResponseData = null;
     try {
       const response = await axios.post(
-        `${AI_SERVICE_URL}/api/voice-checkin/turn`,
+        `${getAiServiceUrl()}/api/voice-checkin/turn`,
         {
           sessionId,
           turnId,

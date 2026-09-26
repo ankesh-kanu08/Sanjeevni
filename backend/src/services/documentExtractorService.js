@@ -1,12 +1,10 @@
 import axios from 'axios';
 import { createRequire } from 'module';
 import { createWorker } from 'tesseract.js';
+import { getAiServiceUrl } from '../config/aiService.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
-
-
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
 
 /**
  * Extracts selectable text from PDF buffer
@@ -334,7 +332,7 @@ export const processMedicalDocument = async (file) => {
   // 2. AI Structured Extraction via FastAPI service
   try {
     const response = await axios.post(
-      `${AI_SERVICE_URL}/api/extract-clinical-document`,
+      `${getAiServiceUrl()}/api/extract-clinical-document`,
       {
         text: rawText,
         filename: originalName,

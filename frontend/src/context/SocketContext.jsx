@@ -128,7 +128,18 @@ export const SocketProvider = ({ children }) => {
       const role = user?.role;
       const hospitalId = user?.hospital?._id || user?.hospital;
 
-      newSocket = io(window.location.origin, {
+      const rawSocketUrl = import.meta.env.VITE_SOCKET_URL;
+      const rawApiUrl = import.meta.env.VITE_API_URL;
+      let socketServerUrl = window.location.origin;
+
+      if (rawSocketUrl) {
+        socketServerUrl = rawSocketUrl.replace(/\/+$/, '');
+      } else if (rawApiUrl) {
+        // Strip trailing /api or slash to get root server origin
+        socketServerUrl = rawApiUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+      }
+
+      newSocket = io(socketServerUrl, {
         auth: { token, userId, role, hospitalId },
         reconnection: true,
         reconnectionAttempts: 10,

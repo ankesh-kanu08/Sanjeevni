@@ -1,11 +1,10 @@
 import axios from 'axios';
-
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+import { getAiServiceUrl } from '../config/aiService.js';
 
 export const extractSymptoms = async (text) => {
   if (!text?.trim()) return [];
   try {
-    const response = await axios.post(`${AI_SERVICE_URL}/api/extract-symptoms`, { text }, { timeout: 1500 });
+    const response = await axios.post(`${getAiServiceUrl()}/api/extract-symptoms`, { text }, { timeout: 1500 });
     return (response.data.symptoms || []).map((symptom) => ({
       name: symptom.name,
       severity: ['mild', 'moderate', 'severe'].includes(symptom.severity) ? symptom.severity : 'moderate',
@@ -20,7 +19,7 @@ export const extractSymptoms = async (text) => {
 export const fetchCheckInProtocol = async (diagnosis, patientName = 'मरीज', comorbidities = []) => {
   try {
     const response = await axios.post(
-      `${AI_SERVICE_URL}/api/checkin-protocol`,
+      `${getAiServiceUrl()}/api/checkin-protocol`,
       { diagnosis: diagnosis || 'General Medical', patient_name: patientName, comorbidities },
       { timeout: 1500 }
     );

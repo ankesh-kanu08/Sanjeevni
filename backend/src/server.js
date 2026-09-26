@@ -22,6 +22,8 @@ import riskRoutes from './routes/risk.js';
 import workerRoutes from './routes/worker.js';
 import doctorRoutes from './routes/doctor.js';
 import adminRoutes from './routes/admin.js';
+import aiRoutes from './routes/ai.js';
+import voiceCheckinRoutes from './routes/voiceCheckins.js';
 
 dotenv.config();
 
@@ -54,6 +56,7 @@ app.use(limiter);
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/hospital', hospitalRoutes);
 app.use('/api/patients', checkinRoutes); // /api/patients/:id/checkins
@@ -62,6 +65,8 @@ app.use('/api/patients', riskRoutes); // /api/patients/:id/risk-assessment
 app.use('/api/worker', workerRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/voice-checkins', voiceCheckinRoutes);
+
 
 // Error Handler Middleware
 app.use(errorHandler);

@@ -158,3 +158,44 @@ class ClinicalDocumentExtractResponse(BaseModel):
     rawTextLength: int = 0
     documentSummary: Optional[str] = None
 
+# ==========================================
+# Reactive Voice Agent Schemas
+# ==========================================
+
+class ObservationItem(BaseModel):
+    type: str  # 'symptom' | 'vital' | 'medication' | 'concern'
+    name: str  # e.g. 'breathlessness', 'weakness', 'cough', 'phlegm', 'spo2', 'heartRate', 'temperature'
+    status: Optional[str] = "present"
+    severity: Optional[str] = None
+    trend: Optional[str] = None  # 'worsening' | 'improving' | 'stable'
+    context: Optional[str] = None  # e.g. 'activity', 'resting'
+    onset: Optional[str] = None
+    value: Optional[Any] = None
+    unit: Optional[str] = None
+    baselineValue: Optional[Any] = None
+    change: Optional[Any] = None
+    notes: Optional[str] = None
+
+class VoiceTurnRequest(BaseModel):
+    sessionId: str
+    turnId: int
+    patientId: Optional[str] = None
+    language: Optional[str] = "en-IN"
+    patientResponse: Optional[str] = ""
+    previousQuestion: Optional[str] = ""
+    conversationState: Optional[Dict[str, Any]] = None
+    monitoringPlan: Optional[Dict[str, Any]] = None
+    baseline: Optional[Dict[str, Any]] = None
+
+class VoiceTurnResponse(BaseModel):
+    assistantResponse: str
+    currentTopic: str
+    nextAction: str  # 'ASK_FOLLOW_UP' | 'ASK_NEXT_TOPIC' | 'CLARIFY' | 'REDIRECT' | 'COMPLETE'
+    extractedObservations: List[ObservationItem] = []
+    answeredTopics: List[str] = []
+    pendingTopics: List[str] = []
+    confidence: float = 0.95
+    conversationState: Dict[str, Any] = {}
+    checkInStatus: str = "IN_PROGRESS"
+
+

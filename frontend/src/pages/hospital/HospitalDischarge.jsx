@@ -659,7 +659,7 @@ export default function HospitalDischarge() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Ramesh Kumar"
+                  placeholder="e.g. Rahul Sharma"
                   className={`w-full p-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-hidden ${
                     submissionErrors.name ? 'border-red-400 bg-red-50/40' : 'border-gray-300'
                   }`}

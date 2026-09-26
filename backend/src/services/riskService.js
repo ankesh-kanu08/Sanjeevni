@@ -97,8 +97,8 @@ const fallbackAssessment = ({ baseline, current, symptoms }) => {
     reasons.push('Heart rate is above safe clinical threshold (>120 bpm)');
   }
 
-  // Combined clinical rule: SpO2 drop >= 4 points AND HR rise >= 15 bpm AND worsening breathlessness => HIGH risk (82)
-  if (spo2Drop >= 4 && hrRise >= 15 && hasWorseningBreathlessness) {
+  // Combined clinical rule: SpO2 drop >= 4 points AND HR rise >= 10 bpm AND worsening breathlessness => HIGH risk (82)
+  if (spo2Drop >= 4 && hrRise >= 10 && hasWorseningBreathlessness) {
     score = Math.max(score, 82);
     reasons.push('Recent assessment shows worsening trend');
   } else if (hasWorseningBreathlessness && score < 50) {
@@ -195,6 +195,8 @@ export const assessRisk = async (patientId, triggeredBy = 'automated') => {
   // 2. Create the single new ACTIVE RiskAssessment
   const assessmentSource = triggeredBy === 'worker_visit' || triggeredBy === 'HEALTH_WORKER'
     ? 'HEALTH_WORKER'
+    : triggeredBy === 'voice_checkin' || triggeredBy === 'VOICE_CHECKIN'
+    ? 'VOICE_CHECKIN'
     : triggeredBy === 'patient_checkin' || triggeredBy === 'PATIENT_CHECKIN'
     ? 'PATIENT_CHECKIN'
     : 'SYSTEM';

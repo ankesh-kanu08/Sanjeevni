@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.risk import router as risk_router
+from app.routes.voice_agent import router as voice_agent_router
 
 app = FastAPI(title="Sanjeevni AI Risk Assessment Service")
 
@@ -13,6 +14,8 @@ app.add_middleware(
 )
 
 app.include_router(risk_router, prefix="/api")
+app.include_router(voice_agent_router, prefix="/api")
+
 
 @app.get("/health")
 def health_check() -> dict[str, str]:

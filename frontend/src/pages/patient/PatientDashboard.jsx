@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { Mic, Phone, Volume2, Sparkles, Heart, Globe } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Mic, Sparkles } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
 import patientService from '../../services/patientService';
 import RiskBadge from '../../components/common/RiskBadge';
 import RuralVoiceAssistantModal from '../../components/patient/RuralVoiceAssistantModal';
-import LanguageSelector from '../../components/common/LanguageSelector';
 
 export default function PatientDashboard() {
   const { user } = useAuth();
-  const { language, setLanguage, t, availableLanguages } = useLanguage();
-  const navigate = useNavigate();
+  const { language, t } = useLanguage();
   const [patientData, setPatientData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -22,12 +17,8 @@ export default function PatientDashboard() {
     try {
       const res = await patientService.getMyRecord();
       setPatientData(res.data);
-      // Synchronize language with patient's server preference if available and different
-      if (res.data?.preferredLanguage && res.data.preferredLanguage !== language) {
-        setLanguage(res.data.preferredLanguage, false);
-      }
     } catch (err) {
-      console.error("Error fetching patient dashboard", err);
+      console.error('Error fetching patient dashboard', err);
     } finally {
       setLoading(false);
     }
@@ -37,11 +28,7 @@ export default function PatientDashboard() {
     if (user) fetchPatientData();
   }, [user]);
 
-  const handleMoodSelect = (mood) => {
-    navigate('/patient/check-in', { state: { mood } });
-  };
-
-  const handleVoiceInput = () => {
+  const handleOpenVoiceModal = () => {
     setVoiceModalOpen(true);
   };
 
@@ -52,145 +39,104 @@ export default function PatientDashboard() {
     setVoiceModalOpen(false);
   };
 
-  const handleLanguageSwitch = async (langCode) => {
-    await setLanguage(langCode, true);
-    const langObj = availableLanguages?.find(l => l.code === langCode);
-    const langName = langObj ? `${langObj.nativeName} (${langObj.name})` : langCode;
-    toast.success(langName);
-  };
+  // Dynamic user name from auth state or patient record
+  const displayName = user?.name || patientData?.user?.name || (language === 'hi' ? 'मरीज' : 'Patient');
+
+  // Formatted date localized to active language
+  const formattedDate = new Intl.DateTimeFormat(language === 'hi' ? 'hi-IN' : 'en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(new Date());
+
+  const currentRisk = patientData?.currentRiskLevel || 'LOW';
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 max-w-3xl mx-auto pb-24 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-8 space-y-8">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            {t('patientDashboard.greeting', { name: user?.name || (language === 'hi' ? 'मरीज' : 'Patient') })}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {t('patientDashboard.greeting', { name: displayName })}
           </h1>
-          <p className="text-lg text-gray-600 mt-1 capitalize">
-            {new Intl.DateTimeFormat(language === 'en' ? 'en-US' : `${language}-IN`, {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }).format(new Date())}
+          <p className="text-sm sm:text-base text-slate-500 font-medium mt-1 capitalize">
+            {formattedDate}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Accessible Multilingual Selector */}
-          <LanguageSelector onChange={handleLanguageSwitch} />
-
-          {!loading && patientData?.currentRiskLevel && (
-            <div className="bg-white px-3.5 py-1.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">{t('patientDashboard.statusLabel')}:</span>
-              <RiskBadge level={patientData.currentRiskLevel} />
-            </div>
-          )}
+        {/* Current Status Badge */}
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <div className="bg-white px-4 py-2 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {t('patientDashboard.statusLabel')}
+            </span>
+            <RiskBadge level={currentRisk} />
+          </div>
         </div>
       </div>
 
-      {/* RURAL ACCESSIBLE HERO BANNER: 1-TOUCH VOICE CONSULTATION */}
-      <div className="bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold uppercase tracking-wider mb-3">
-            <Sparkles size={14} className="text-emerald-200" />
-            {t('patientDashboard.heroTag')}
+      {/* Hero Voice Check-in Card (Matches Mockup) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#1E1B4B] text-white p-8 sm:p-12 shadow-2xl border border-indigo-900/40">
+        {/* Subtle Decorative Vector Graphics */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+          {/* Medical Cross Graphic */}
+          <svg
+            className="absolute -top-12 -right-12 w-80 h-80 text-white/5"
+            viewBox="0 0 200 200"
+            fill="currentColor"
+          >
+            <path d="M85 20 H115 V85 H180 V115 H115 V180 H85 V115 H20 V85 H85 Z" />
+          </svg>
+          {/* Wave ECG Graphic */}
+          <svg
+            className="absolute bottom-3 left-6 w-[480px] h-32 text-indigo-400/10 stroke-current fill-none stroke-[2.5]"
+            viewBox="0 0 400 100"
+          >
+            <path d="M0,50 L90,50 L110,15 L125,85 L140,30 L155,70 L170,50 L400,50" />
+          </svg>
+          {/* Concentric Ambient Glow */}
+          <div className="absolute top-1/2 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl transform -translate-y-1/2" />
+        </div>
+
+        <div className="relative z-10 max-w-2xl">
+          {/* Overline Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-bold uppercase tracking-wider mb-5 backdrop-blur-sm">
+            <Sparkles size={13} className="text-indigo-300 animate-pulse" />
+            <span>{t('patientDashboard.heroTag')}</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black mb-2">
+          {/* Title */}
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4">
             {t('patientDashboard.heroTitle')}
           </h2>
 
-          <p className="text-teal-100 text-base max-w-lg mb-6">
+          {/* Description */}
+          <p className="text-slate-300 text-base sm:text-lg leading-relaxed mb-8 max-w-xl font-normal">
             {t('patientDashboard.heroDescription')}
           </p>
 
+          {/* Action Button with Soundwave */}
           <button
             type="button"
-            onClick={handleVoiceInput}
-            className="group relative px-8 py-5 bg-white text-teal-800 hover:bg-emerald-50 text-xl sm:text-2xl font-black rounded-2xl shadow-2xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-4"
+            onClick={handleOpenVoiceModal}
+            className="group inline-flex items-center gap-3.5 px-8 py-4.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-lg shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
           >
-            <span className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-              <Mic size={26} className="animate-pulse" />
+            <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <Mic size={22} className="text-white" />
             </span>
-            <span>{t('patientDashboard.tapToSpeakBtn')}</span>
-            <Volume2 size={24} className="text-teal-600 hidden sm:inline-block" />
-          </button>
-        </div>
-
-        {/* Decorative background circles */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-emerald-400/20 pointer-events-none" />
-      </div>
-
-      {/* Quick Mood Selection */}
-      <div className="bg-white rounded-3xl shadow-sm p-6 sm:p-8 border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          {t('patientDashboard.moodQuestion')}
-        </h2>
-        
-        <div className="space-y-4">
-          <button 
-            onClick={() => handleMoodSelect('better')}
-            className="w-full min-h-16 text-xl sm:text-2xl font-bold rounded-2xl p-4 border-2 border-emerald-300 hover:bg-emerald-50 text-emerald-800 transition-colors flex items-center justify-center gap-4 shadow-sm"
-          >
-            <span className="text-4xl">😊</span> {t('patientDashboard.moodBetter')}
-          </button>
-          
-          <button 
-            onClick={() => handleMoodSelect('same')}
-            className="w-full min-h-16 text-xl sm:text-2xl font-bold rounded-2xl p-4 border-2 border-amber-300 hover:bg-amber-50 text-amber-800 transition-colors flex items-center justify-center gap-4 shadow-sm"
-          >
-            <span className="text-4xl">😐</span> {t('patientDashboard.moodSame')}
-          </button>
-          
-          <button 
-            onClick={() => handleMoodSelect('worse')}
-            className="w-full min-h-16 text-xl sm:text-2xl font-bold rounded-2xl p-4 border-2 border-red-300 hover:bg-red-50 text-red-800 transition-colors flex items-center justify-center gap-4 shadow-sm"
-          >
-            <span className="text-4xl">😟</span> {t('patientDashboard.moodWorse')}
+            <span>{t('patientDashboard.startVoiceCheckin')}</span>
+            {/* Animated Sound Wave Bars */}
+            <div className="flex items-center gap-1 pl-2">
+              <span className="w-1 h-3.5 bg-white/70 rounded-full animate-[pulse_1s_ease-in-out_infinite]" />
+              <span className="w-1 h-5.5 bg-white rounded-full animate-[pulse_1.2s_ease-in-out_infinite]" />
+              <span className="w-1 h-3.5 bg-white/70 rounded-full animate-[pulse_0.8s_ease-in-out_infinite]" />
+            </div>
           </button>
         </div>
       </div>
 
-      {/* Next Check-in & Care Team Reminders */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-teal-50/80 rounded-3xl p-6 border border-teal-100">
-          <h3 className="text-xl font-bold text-teal-900 mb-2">{t('patientDashboard.nextCheckinTitle')}</h3>
-          <p className="text-base text-teal-800">
-            {t('patientDashboard.nextCheckinText')}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 mb-3">{t('patientDashboard.medsTitle')}</h3>
-          <p className="text-sm text-gray-600 mb-4">{t('patientDashboard.medsQuestion')}</p>
-          <div className="flex gap-3">
-            <button
-              onClick={() => toast.success(t('patientDashboard.medsTakenToast'))}
-              className="flex-1 bg-teal-100 hover:bg-teal-200 text-teal-800 text-lg font-bold py-3 rounded-xl border border-teal-200"
-            >
-              {t('common.yes')}
-            </button>
-            <button
-              onClick={() => toast(t('patientDashboard.medsMissedToast'), { icon: '💊' })}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 text-lg font-bold py-3 rounded-xl border border-gray-200"
-            >
-              {t('common.no')}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={() => toast(t('patientDashboard.contactTeamToast'), { icon: '📞' })}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xl font-bold py-5 rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-colors"
-      >
-        <Phone size={24} />
-        {t('patientDashboard.contactTeamBtn')}
-      </button>
-
-      {/* HANDS-FREE AUTOMATED RURAL VOICE ASSISTANT MODAL */}
+      {/* Hands-Free Automated Voice Assistant Modal */}
       <RuralVoiceAssistantModal
         isOpen={voiceModalOpen}
         onClose={handleCloseVoiceModal}

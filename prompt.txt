@@ -1,0 +1,1329 @@
+I am building a healthcare technology platform called "CareWatch".
+
+Project concept:
+CareWatch is an AI-powered post-discharge monitoring and care-coordination platform. Its purpose is to detect possible patient deterioration after hospital discharge before the condition becomes severe.
+
+The system should NOT act as an AI doctor. It should NOT diagnose diseases or prescribe medicines.
+
+Instead, it should:
+1. Create a personalized baseline when a patient is discharged.
+2. Collect low-burden post-discharge information from the patient.
+3. Analyze symptoms, vitals, activity/behavioral changes and historical trends.
+4. Detect possible deterioration relative to the patient's own baseline.
+5. Classify the situation into Low / Medium / High risk.
+6. For medium-risk cases, request physical verification from an appropriate healthcare worker.
+7. For high-risk or verified concerning cases, route the case to a doctor/clinical team.
+8. Allow the doctor to make the final clinical decision.
+9. Record the outcome and continue monitoring.
+
+The key innovation is:
+"Personalized longitudinal deterioration detection + accessible data collection + risk-adaptive physical verification + care coordination."
+
+The system should work for both rural and urban patients.
+
+==================================================
+TECHNOLOGY STACK
+==================================================
+
+Frontend:
+- React.js
+- Tailwind CSS
+- React Router
+- Recharts or Chart.js
+- Axios
+- Socket.IO client
+
+Backend:
+- Node.js
+- Express.js
+- REST APIs
+- Socket.IO
+- JWT authentication
+- Role-based access control
+
+Database:
+- MongoDB
+- Mongoose
+
+AI/ML service:
+- Python
+- FastAPI
+- scikit-learn initially
+- XGBoost or Random Forest for the first risk model
+- Rule-based clinical safety layer
+- NLP/LLM for symptom extraction and conversation
+- Speech-to-Text for voice input
+
+Architecture:
+
+React
+   ↓
+Node.js + Express
+   ↓
+MongoDB
+
+Node.js
+   ↓
+Python FastAPI AI Service
+   ↓
+ML + NLP + Clinical Rules
+
+Do NOT put the entire medical decision logic inside an LLM.
+
+Use:
+LLM/NLP → understand and structure patient language
+ML + clinical rules → deterioration risk assessment
+Doctor → final clinical decision
+
+
+==================================================
+USER ROLES
+==================================================
+
+Implement role-based authentication.
+
+Roles:
+
+1. PATIENT
+2. ASHA / ANM / CHO / FIELD HEALTH WORKER
+3. DOCTOR / CLINICAL TEAM
+4. HOSPITAL ADMIN
+5. SYSTEM ADMIN
+
+Each role must have a separate dashboard and permissions.
+
+
+==================================================
+1. HOSPITAL WORKFLOW
+==================================================
+
+Hospital staff logs into the hospital dashboard.
+
+They should be able to:
+
+- Register a patient
+- Enter patient demographic information
+- Enter diagnosis
+- Enter discharge date
+- Enter discharge vitals
+- Enter relevant laboratory values
+- Enter medications
+- Upload relevant discharge documents
+- Enter follow-up date
+- Define monitoring parameters
+- Assign healthcare team
+- Select rural/urban location
+- Select monitoring frequency
+
+Example:
+
+Patient:
+Ramesh Kumar
+
+Age:
+62
+
+Diagnosis:
+Pneumonia
+
+Discharge SpO2:
+96%
+
+Heart Rate:
+78 bpm
+
+Temperature:
+98.4 F
+
+Medications:
+...
+
+Follow-up:
+7 days
+
+Monitoring:
+SpO2
+Heart rate
+Temperature
+Breathlessness
+Activity
+
+
+==================================================
+2. PATIENT BASELINE
+==================================================
+
+When the patient is discharged, the system creates a personalized baseline.
+
+Baseline should contain:
+
+- Discharge vitals
+- Relevant clinical parameters
+- Symptoms at discharge
+- Diagnosis
+- Medication information
+- Activity baseline if available
+- Relevant lab values
+- Monitoring schedule
+
+Do NOT assume that one universal threshold applies to every patient.
+
+The system should primarily analyze CHANGE FROM PERSONAL BASELINE plus clinically relevant thresholds.
+
+Example:
+
+Baseline SpO2 = 96
+Current SpO2 = 92
+
+Instead of simply saying:
+"SpO2 is 92"
+
+the system should recognize:
+
+"SpO2 has decreased by 4 percentage points from the patient's discharge baseline."
+
+
+==================================================
+3. POST-DISCHARGE PATIENT MONITORING
+==================================================
+
+The patient should NOT be forced to install a complicated healthcare app.
+
+Support multiple communication channels.
+
+Possible channels:
+
+Rural:
+- Ordinary phone
+- IVR
+- Voice
+- SMS
+- WhatsApp where available
+
+Urban:
+- Phone
+- WhatsApp
+- Web/mobile interface
+- Voice
+
+For the MVP, implement:
+- Web interface
+- Text input
+- Microphone/voice input
+
+Design the architecture so IVR and WhatsApp can be added later.
+
+
+==================================================
+4. PATIENT CHECK-IN
+==================================================
+
+Patient receives a simple check-in.
+
+Example:
+
+"How are you feeling today?"
+
+Patient can respond by voice or text:
+
+"Kal se saans lene mein thodi zyada dikkat ho rahi hai."
+
+The system should:
+
+Voice
+ ↓
+Speech-to-Text
+ ↓
+NLP/LLM
+ ↓
+Structured symptoms
+
+Example structured output:
+
+{
+  "symptoms": [
+    {
+      "name": "breathlessness",
+      "severity": "moderate",
+      "trend": "worsening",
+      "onset": "yesterday"
+    }
+  ]
+}
+
+Store the structured observation with timestamp.
+
+The patient interface must be extremely simple.
+
+Prefer:
+- Large buttons
+- Voice interaction
+- Local-language support
+- Minimal typing
+- Clear instructions
+
+
+==================================================
+5. DATA COLLECTION
+==================================================
+
+Collect several types of information.
+
+A. Clinical baseline:
+- Diagnosis
+- Discharge vitals
+- Relevant labs
+- Medications
+
+B. Patient-reported:
+- Breathlessness
+- Pain
+- Fever
+- Cough
+- Fatigue
+- Dizziness
+- Appetite
+- Fluid intake
+- Medication adherence
+- General condition
+
+C. Objective measurements:
+- SpO2
+- Heart rate
+- Blood pressure
+- Temperature
+- Respiratory rate when required
+
+D. Behavioral/longitudinal:
+- Activity change
+- Sleep/activity changes where available
+- Previous measurements
+- Symptom frequency
+- Change from baseline
+
+E. Outcome:
+- Doctor decision
+- Referral
+- Hospitalization
+- Recovery
+- Readmission
+
+
+==================================================
+6. AI RISK ENGINE
+==================================================
+
+Create a separate Python FastAPI service.
+
+Node.js sends structured patient information to the AI service.
+
+Example:
+
+{
+  "patientId": "P1023",
+  "baseline": {
+    "spo2": 96,
+    "heartRate": 78
+  },
+  "current": {
+    "spo2": 92,
+    "heartRate": 98
+  },
+  "symptoms": [
+    "increased_breathlessness"
+  ],
+  "activityChange": -25
+}
+
+AI service returns:
+
+{
+  "riskScore": 82,
+  "riskLevel": "HIGH",
+  "reasons": [
+    "SpO2 decreased from personal baseline",
+    "Heart rate increased",
+    "Breathlessness worsening",
+    "Activity decreased"
+  ],
+  "recommendedWorkflow": "CLINICAL_REVIEW"
+}
+
+The UI should NEVER display only a mysterious AI score.
+
+Always show:
+- Risk level
+- Risk score
+- Reasons
+- Relevant trends
+- Data used
+- Timestamp
+
+
+==================================================
+7. RISK MODEL
+==================================================
+
+Initially implement a hybrid approach:
+
+Clinical safety rules
++
+ML risk model
++
+Longitudinal trend analysis
+
+Risk levels:
+
+LOW:
+No concerning change detected.
+
+Action:
+Continue automated monitoring.
+
+MEDIUM:
+Potential deterioration detected but physical verification is appropriate.
+
+Action:
+Create a field-health-worker task.
+
+HIGH:
+Strong concern or predefined emergency criteria.
+
+Action:
+Clinical review / predefined emergency escalation.
+
+IMPORTANT:
+Risk classification is NOT a medical diagnosis.
+
+
+==================================================
+8. RISK-ADAPTIVE MONITORING
+==================================================
+
+Do not collect every measurement from every patient.
+
+Monitoring intensity should depend on risk.
+
+Example:
+
+LOW RISK:
+- Automated check-in
+- Symptoms
+- Medication adherence
+
+MEDIUM RISK:
+- Automated check-in
+- Targeted vitals
+- Physical verification
+
+HIGH RISK:
+- More frequent monitoring
+- Required measurements
+- Clinical review
+
+The AI/workflow should recommend which additional measurement is needed.
+
+Example:
+
+Instead of:
+"Measure everything."
+
+Generate:
+"Please verify SpO2 and heart rate."
+
+==================================================
+9. RURAL WORKFLOW
+==================================================
+
+For rural patients:
+
+Patient
+ ↓
+Phone / IVR / voice
+ ↓
+AI analysis
+ ↓
+Medium risk
+ ↓
+ASHA / ANM / CHO / field worker
+ ↓
+Physical assessment
+ ↓
+Data entered into platform
+ ↓
+AI re-analysis
+ ↓
+Doctor if required
+
+Healthcare worker dashboard should show:
+
+Today's priority tasks
+
+Example:
+
+HIGH PRIORITY
+Ramesh Kumar
+Reason:
+SpO2 decreased from baseline
+
+Required action:
+Visit patient and check:
+- SpO2
+- Heart rate
+- Temperature
+
+The health worker should NOT diagnose the patient.
+
+They only:
+- Visit
+- Observe
+- Measure
+- Record
+- Escalate
+
+
+==================================================
+10. URBAN WORKFLOW
+==================================================
+
+For urban patients:
+
+Patient
+ ↓
+Phone / WhatsApp / web / voice
+ ↓
+AI analysis
+ ↓
+Medium risk
+ ↓
+Available urban healthcare pathway
+ ↓
+Physical verification if required
+ ↓
+Data sent to platform
+ ↓
+AI re-analysis
+ ↓
+Doctor if required
+
+The system should NOT assume that every urban patient has a specific healthcare worker.
+
+Make the workflow configurable.
+
+Possible verification sources:
+- UPHC
+- AAM
+- Community health worker
+- Linked home-care service
+- Other configured healthcare provider
+
+The backend should support configurable healthcare-provider assignment.
+
+
+==================================================
+11. HEALTHCARE WORKER DASHBOARD
+==================================================
+
+Create a dashboard containing:
+
+Header:
+"Good Morning, [Worker Name]"
+
+Cards:
+- Assigned patients
+- High priority
+- Medium priority
+- Completed visits
+
+Main section:
+"Today's Priority Patients"
+
+Each patient card should show:
+
+Patient name
+Age
+Location
+Risk level
+Reason
+Last measurement
+Required action
+Last contact
+
+Example:
+
+RAMESH KUMAR
+62 years
+HIGH RISK
+
+SpO2: 92%
+Baseline: 96%
+
+Symptoms:
+Increasing breathlessness
+
+ACTION:
+Physical verification required
+
+Buttons:
+[View Patient]
+[Start Visit]
+[Record Vitals]
+
+
+==================================================
+12. FIELD VISIT SCREEN
+==================================================
+
+Create a very simple mobile-friendly form.
+
+Patient:
+Ramesh Kumar
+
+Visit date/time:
+Automatically captured
+
+Measurements:
+
+SpO2:
+[    ]
+
+Heart rate:
+[    ]
+
+Temperature:
+[    ]
+
+Blood pressure:
+[    ]
+
+Symptoms:
+[checkboxes]
+
+Physical observations:
+[text/voice input]
+
+Worker notes:
+[text/voice input]
+
+Submit button:
+"Submit Assessment"
+
+Support offline-first behavior conceptually.
+
+If internet is unavailable:
+Store the assessment locally and sync when connectivity returns.
+
+For MVP, implement the data model and UI in a way that can support offline sync later.
+
+
+==================================================
+13. DATA SENT FROM HEALTH WORKER
+==================================================
+
+Example:
+
+{
+  "patientId": "P1023",
+  "workerId": "W204",
+  "timestamp": "...",
+  "vitals": {
+    "spo2": 91,
+    "heartRate": 104,
+    "temperature": 99.1,
+    "bloodPressure": "138/86"
+  },
+  "symptoms": [
+    "breathlessness",
+    "fatigue"
+  ],
+  "observations": "Patient appears fatigued and reports worsening breathlessness."
+}
+
+This data goes:
+
+Health Worker
+ ↓
+Node.js API
+ ↓
+MongoDB
+ ↓
+Python AI Service
+ ↓
+Updated risk
+ ↓
+Doctor dashboard
+
+
+==================================================
+14. DOCTOR DASHBOARD
+==================================================
+
+The doctor dashboard is the most clinically detailed interface.
+
+Show:
+
+Patient overview
+- Name
+- Age
+- Diagnosis
+- Discharge date
+- Follow-up date
+
+Current risk:
+HIGH
+
+Risk score:
+82
+
+Reasons:
+- SpO2 decreased
+- Heart rate increased
+- Breathlessness worsening
+- Activity decreased
+
+Show longitudinal graphs:
+
+SpO2:
+Discharge → Day 1 → Day 2 → Day 3 → Day 4
+
+Heart rate:
+Discharge → Day 1 → Day 2 → Day 3 → Day 4
+
+Symptoms timeline
+
+Medication adherence
+
+Health worker assessments
+
+Patient-reported symptoms
+
+The doctor should be able to view the entire patient timeline.
+
+
+==================================================
+15. DOCTOR ACTIONS
+==================================================
+
+Doctor can choose:
+
+- Continue home monitoring
+- Request another assessment
+- Start teleconsultation
+- Refer to PHC
+- Refer to hospital
+- Emergency escalation
+- Modify monitoring frequency
+
+Also allow:
+
+Doctor notes
+Clinical decision
+Follow-up date
+
+The doctor is always the final clinical decision-maker.
+
+
+==================================================
+16. HIGH-RISK ALERT
+==================================================
+
+High-risk cases should generate an alert.
+
+Doctor should see:
+
+URGENT CLINICAL REVIEW
+
+Patient:
+Ramesh Kumar
+
+Risk:
+HIGH
+
+Why:
+SpO2 decreased from 96 → 91
+Heart rate increased 78 → 104
+Breathlessness worsening
+
+Latest physical verification:
+ASHA assessment completed 15 minutes ago
+
+Actions:
+[Review Patient]
+[Request Teleconsult]
+[Refer]
+[Emergency Escalation]
+
+Use Socket.IO for real-time dashboard notifications.
+
+
+==================================================
+17. ALERT-TO-ACTION WORKFLOW
+==================================================
+
+Do NOT create a system where every abnormal value directly alerts every doctor.
+
+Instead:
+
+Data
+ ↓
+Context
+ ↓
+Personal baseline
+ ↓
+Trend analysis
+ ↓
+Risk assessment
+ ↓
+Explainable reason
+ ↓
+Appropriate workflow
+
+Example:
+
+Low:
+No alert → continue monitoring
+
+Medium:
+Create healthcare-worker task
+
+High:
+Doctor clinical review
+
+This is a key feature of the platform.
+
+
+==================================================
+18. PATIENT TIMELINE
+==================================================
+
+Every patient should have a chronological timeline.
+
+Example:
+
+DAY 0
+Hospital discharge
+SpO2: 96
+HR: 78
+
+DAY 1
+Patient reports mild breathlessness
+
+DAY 2
+Breathlessness increasing
+
+DAY 3
+AI detects deterioration trend
+
+DAY 3
+ASHA visit requested
+
+DAY 3
+SpO2: 91
+HR: 104
+
+DAY 3
+Risk updated to HIGH
+
+DAY 3
+Doctor reviewed
+
+DAY 3
+Referral recommended
+
+The timeline should be visually clear.
+
+
+==================================================
+19. DATABASE MODELS
+==================================================
+
+Create appropriate MongoDB schemas.
+
+At minimum:
+
+User
+Patient
+Hospital
+HealthcareWorker
+Doctor
+DischargeRecord
+Baseline
+MonitoringPlan
+PatientCheckIn
+VitalMeasurement
+SymptomObservation
+RiskAssessment
+HealthcareWorkerVisit
+Alert
+DoctorDecision
+Outcome
+AuditLog
+
+Use references between collections where appropriate.
+
+Store timestamps for all clinically relevant events.
+
+Never overwrite historical measurements.
+
+All measurements must remain part of the longitudinal timeline.
+
+
+==================================================
+20. SECURITY
+==================================================
+
+Implement:
+
+JWT authentication
+Password hashing
+Role-based authorization
+Protected API routes
+Input validation
+Audit logging
+Secure environment variables
+No secrets in frontend
+No sensitive data in URLs
+Basic rate limiting
+
+Patient data must only be visible to authorized users.
+
+Different roles must have different permissions.
+
+
+==================================================
+21. UI/UX DESIGN
+==================================================
+
+The platform should look like a real healthcare product, not a generic student CRUD application.
+
+Design:
+
+- Clean
+- Professional
+- Modern
+- Minimal
+- Accessible
+- Responsive
+- Mobile-friendly
+- Healthcare-oriented
+
+Use:
+
+White/light background
+Blue/teal healthcare visual language
+Subtle cards
+Rounded corners
+Clear typography
+Simple charts
+Risk indicators
+
+Risk indicators:
+LOW → green
+MEDIUM → orange
+HIGH → red
+
+Do not overuse colors.
+
+Patient interface:
+Extremely simple.
+
+Healthcare worker:
+Task-oriented.
+
+Doctor:
+Information-dense but organized.
+
+Hospital:
+Data-entry oriented.
+
+
+==================================================
+22. MAIN ROUTES
+==================================================
+
+Create routes similar to:
+
+/
+/login
+/register
+
+/patient/dashboard
+/patient/check-in
+/patient/history
+/patient/profile
+
+/worker/dashboard
+/worker/tasks
+/worker/patient/:id
+/worker/visit/:id
+
+/doctor/dashboard
+/doctor/alerts
+/doctor/patient/:id
+/doctor/decisions
+
+/hospital/dashboard
+/hospital/patients
+/hospital/patient/:id
+/hospital/discharge
+
+/admin/dashboard
+/admin/users
+/admin/hospitals
+
+
+==================================================
+23. MAIN DASHBOARD
+==================================================
+
+Create role-specific dashboards.
+
+DOCTOR DASHBOARD:
+
+Total monitored patients
+High-risk patients
+Medium-risk patients
+Pending reviews
+Recent alerts
+
+Charts:
+Risk distribution
+Patient trends
+Alerts over time
+
+HEALTH WORKER DASHBOARD:
+
+Assigned patients
+Today's visits
+High-priority visits
+Pending assessments
+
+HOSPITAL DASHBOARD:
+
+Recently discharged
+Currently monitored
+High-risk patients
+Readmissions
+Follow-up compliance
+
+PATIENT DASHBOARD:
+
+How are you feeling today?
+
+[🎤 Speak]
+
+or
+
+[I'm feeling better]
+[Same]
+[I'm feeling worse]
+
+Today's status
+Next check-in
+Medication reminder
+Contact healthcare team
+
+
+==================================================
+24. AI CONVERSATION
+==================================================
+
+Implement a conversational interface.
+
+Example:
+
+AI:
+"How are you feeling today?"
+
+Patient:
+"Thoda weakness hai."
+
+AI:
+"Is the weakness worse than yesterday?"
+
+Patient:
+"Haan."
+
+AI:
+"Are you having difficulty breathing?"
+
+Patient:
+"Thodi."
+
+The system should convert this conversation into structured observations.
+
+Do NOT let the AI independently diagnose the patient.
+
+The AI should stay within the configured monitoring questions and escalation rules.
+
+
+==================================================
+25. API STRUCTURE
+==================================================
+
+Create clean REST endpoints.
+
+Examples:
+
+POST /api/auth/login
+
+POST /api/patients
+GET /api/patients/:id
+
+POST /api/patients/:id/checkins
+GET /api/patients/:id/timeline
+
+POST /api/patients/:id/vitals
+GET /api/patients/:id/vitals
+
+POST /api/patients/:id/risk-assessment
+GET /api/patients/:id/risk-history
+
+POST /api/worker/visits
+GET /api/worker/tasks
+
+GET /api/doctor/alerts
+POST /api/doctor/decisions
+
+POST /api/hospital/discharge
+
+POST /api/ai/analyze
+
+
+==================================================
+26. PROJECT STRUCTURE
+==================================================
+
+Use a clean monorepo structure:
+
+carewatch/
+
+  frontend/
+    src/
+      components/
+      pages/
+      layouts/
+      hooks/
+      services/
+      context/
+      charts/
+      utils/
+
+  backend/
+    src/
+      controllers/
+      routes/
+      models/
+      middleware/
+      services/
+      utils/
+      sockets/
+      config/
+
+  ai-service/
+    app/
+      main.py
+      routes/
+      models/
+      services/
+      ml/
+      nlp/
+      rules/
+
+  README.md
+
+
+==================================================
+27. DEVELOPMENT APPROACH
+==================================================
+
+Do NOT attempt to build every advanced feature immediately.
+
+Build a working MVP first.
+
+MVP priority:
+
+PHASE 1:
+Authentication
++
+Role-based dashboards
++
+Hospital discharge module
++
+Patient baseline
++
+Patient monitoring
++
+Health worker workflow
++
+Doctor workflow
+
+PHASE 2:
+Patient text conversation
++
+Symptom extraction
++
+Risk engine
++
+Risk dashboard
+
+PHASE 3:
+Microphone input
++
+Speech-to-text
++
+Voice interaction
+
+PHASE 4:
+Charts
++
+Longitudinal timeline
++
+Real-time alerts
+
+PHASE 5:
+Offline-first health worker workflow
++
+Bluetooth medical devices
++
+IVR
++
+WhatsApp integration
+
+Do not build hardware or IVR before the core platform works.
+
+
+==================================================
+28. DEMO SCENARIO
+==================================================
+
+Create realistic seed/demo data.
+
+Use a demo patient:
+
+Name:
+Ramesh Kumar
+
+Age:
+62
+
+Location:
+Rural
+
+Diagnosis:
+Pneumonia
+
+Discharge SpO2:
+96%
+
+Discharge HR:
+78
+
+Day 1:
+Mild fatigue
+
+Day 2:
+Increasing breathlessness
+
+Day 3:
+SpO2 92
+HR 98
+
+AI:
+MEDIUM/HIGH concern
+
+ASHA:
+Physical verification
+
+Latest:
+SpO2 91
+HR 104
+
+AI:
+HIGH RISK
+
+Doctor:
+Reviews case
+
+Doctor action:
+Hospital referral
+
+Outcome:
+Referred
+
+Then show:
+Continue monitoring after clinical action.
+
+This demo should make the entire workflow visible to a judge.
+
+
+==================================================
+29. IMPORTANT SAFETY RULES
+==================================================
+
+This is a healthcare decision-support platform.
+
+Never claim:
+- "AI diagnosed the patient"
+- "AI knows the patient has disease X"
+- "AI prescribed medicine"
+- "AI replaces doctors"
+
+Use language such as:
+
+"Possible deterioration detected"
+
+"Clinical review recommended"
+
+"Risk increased relative to personal baseline"
+
+"Physical verification recommended"
+
+"Final clinical decision by healthcare professional"
+
+
+==================================================
+30. FINAL PRODUCT GOAL
+==================================================
+
+The final website should clearly demonstrate this closed-loop workflow:
+
+HOSPITAL
+   ↓
+DISCHARGE DATA
+   ↓
+PERSONAL BASELINE
+   ↓
+PATIENT HOME
+   ↓
+LOW-BURDEN CHECK-IN
+   ↓
+AI ANALYSIS
+   ↓
+RISK ASSESSMENT
+   ↓
+LOW ───────────────→ CONTINUE MONITORING
+   ↓
+MEDIUM
+   ↓
+HEALTHCARE WORKER
+   ↓
+PHYSICAL VERIFICATION
+   ↓
+AI RE-ANALYSIS
+   ↓
+DOCTOR
+   ↓
+CLINICAL DECISION
+   ↓
+ACTION
+   ↓
+OUTCOME
+   ↓
+CONTINUED MONITORING
+
+The central principle of the entire product is:
+
+"Detect change early, verify intelligently, and route the right patient to the right healthcare professional at the right time."
+
+Build the application incrementally, keeping the architecture modular so that AI, IVR, WhatsApp, Bluetooth devices, and additional healthcare integrations can be added later without rewriting the core system.

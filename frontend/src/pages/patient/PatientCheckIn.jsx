@@ -1,20 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronDown, ChevronUp, Mic, Square } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, Mic, Square, Sparkles, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
 import patientService from '../../services/patientService';
 import useSpeechRecognition from '../../hooks/useSpeechRecognition';
 
-const SYMPTOMS = ['Breathlessness', 'Fever', 'Pain', 'Cough', 'Fatigue', 'Dizziness', 'Loss of Appetite', 'Weakness', 'Chest Pain', 'Swelling'];
+const SYMPTOMS = [
+  'Breathlessness',
+  'Fever',
+  'Pain',
+  'Cough',
+  'Fatigue',
+  'Dizziness',
+  'Loss of Appetite',
+  'Weakness',
+  'Chest Pain',
+  'Swelling'
+];
 
 export default function PatientCheckIn() {
   const { user } = useAuth();
-  const { language: currentLang, speechLocale } = useLanguage();
+  const { language: currentLang, speechLocale, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     feelingDesc: '',
     mood: location.state?.mood || '',
@@ -35,6 +46,10 @@ export default function PatientCheckIn() {
   const [language, setLanguage] = useState(speechLocale || (currentLang === 'hi' ? 'hi-IN' : 'en-IN'));
   const [extracting, setExtracting] = useState(false);
 
+  useEffect(() => {
+    setLanguage(speechLocale || (currentLang === 'hi' ? 'hi-IN' : 'en-IN'));
+  }, [currentLang, speechLocale]);
+
   const applyExtractedSymptoms = useCallback(async (text) => {
     if (!patientId || !text.trim()) return;
     setExtracting(true);
@@ -43,19 +58,38 @@ export default function PatientCheckIn() {
       extracted.forEach((symptom) => {
         const label = SYMPTOMS.find((item) => item.toLowerCase().replace(/\s+/g, '_') === symptom.name);
         if (!label) return;
-        setFormData((current) => ({ ...current, symptoms: current.symptoms.includes(label) ? current.symptoms : [...current.symptoms, label] }));
-        setSymptomDetails((current) => ({ ...current, [label]: { severity: symptom.severity[0].toUpperCase() + symptom.severity.slice(1), trend: symptom.trend === 'worsening' ? 'Getting Worse' : symptom.trend === 'improving' ? 'Getting Better' : 'Same' } }));
+        setFormData((current) => ({
+          ...current,
+          symptoms: current.symptoms.includes(label) ? current.symptoms : [...current.symptoms, label]
+        }));
+        setSymptomDetails((current) => ({
+          ...current,
+          [label]: {
+            severity: symptom.severity[0].toUpperCase() + symptom.severity.slice(1),
+            trend: symptom.trend === 'worsening' ? 'Getting Worse' : symptom.trend === 'improving' ? 'Getting Better' : 'Same'
+          }
+        }));
       });
-      if (extracted.length) toast.success('Symptoms identified from your words. Please review them below.');
+      if (extracted.length) toast.success('Symptoms identified from your speech.');
     } catch {
-      toast('Your words were added. Please select any symptoms below.', { icon: 'ℹ️' });
-    } finally { setExtracting(false); }
+      // Non-critical fallback
+    } finally {
+      setExtracting(false);
+    }
   }, [patientId]);
+
   const handleVoiceResult = useCallback((text) => {
-    setFormData((current) => ({ ...current, feelingDesc: current.feelingDesc ? `${current.feelingDesc} ${text}` : text }));
+    setFormData((current) => ({
+      ...current,
+      feelingDesc: current.feelingDesc ? `${current.feelingDesc} ${text}` : text
+    }));
     applyExtractedSymptoms(text);
   }, [applyExtractedSymptoms]);
-  const { isSupported, isListening, error: voiceError, startListening, stopListening } = useSpeechRecognition({ language, onResult: handleVoiceResult });
+
+  const { isSupported, isListening, error: voiceError, startListening, stopListening } = useSpeechRecognition({
+    language,
+    onResult: handleVoiceResult
+  });
 
   useEffect(() => {
     if (location.state?.startVoice && isSupported) startListening();
@@ -155,7 +189,7 @@ export default function PatientCheckIn() {
       }
 
       setSubmitted(true);
-      toast.success('Check-in submitted successfully!');
+      toast.success(t('patientCheckIn.successToast'));
     } catch (err) {
       console.error('Checkin submit error:', err);
       toast.error('Failed to submit check-in. Please try again.');
@@ -166,24 +200,30 @@ export default function PatientCheckIn() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
-        <CheckCircle2 size={96} className="text-emerald-500 mb-5 animate-bounce" />
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Check-in Recorded Successfully!</h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Thank you for updating us. Your symptoms have been analyzed by Sanjeevni AI and updated in your patient history.
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
+        <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 shadow-sm">
+          <CheckCircle2 size={48} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">
+          {t('patientCheckIn.successToast')}
+        </h1>
+        <p className="text-slate-500 text-sm sm:text-base mb-8 max-w-md">
+          {currentLang === 'hi'
+            ? 'आपकी दैनिक स्थिति संजीवनी AI द्वारा दर्ज कर ली गई है।'
+            : 'Thank you. Your symptoms and vitals have been recorded for your care team.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 w-full">
-          <button 
+          <button
             onClick={() => navigate('/patient/history')}
-            className="flex-1 bg-teal-600 text-white text-base font-bold py-3.5 px-6 rounded-2xl shadow-md hover:bg-teal-700 transition-colors"
+            className="flex-1 bg-indigo-600 text-white text-sm sm:text-base font-semibold py-3.5 px-6 rounded-2xl shadow-md hover:bg-indigo-700 transition-colors"
           >
-            View in History (इतिहास देखें)
+            {t('patientHistory.title')}
           </button>
-          <button 
+          <button
             onClick={() => navigate('/patient/dashboard')}
-            className="flex-1 bg-slate-100 text-slate-700 text-base font-bold py-3.5 px-6 rounded-2xl hover:bg-slate-200 transition-colors"
+            className="flex-1 bg-slate-100 text-slate-700 text-sm sm:text-base font-semibold py-3.5 px-6 rounded-2xl hover:bg-slate-200 transition-colors"
           >
-            Dashboard
+            {t('nav.dashboard')}
           </button>
         </div>
       </div>
@@ -191,37 +231,66 @@ export default function PatientCheckIn() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 max-w-3xl mx-auto pb-24">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Daily Check-In</h1>
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          {t('patientCheckIn.title')}
+        </h1>
+        <p className="text-slate-500 font-medium text-sm sm:text-base mt-1">
+          {t('patientCheckIn.subtitle')}
+        </p>
+      </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-        <h2 className="text-2xl font-semibold mb-4">How are you feeling?</h2>
-        <div className="flex flex-wrap gap-3 mb-4">
-          <select value={language} onChange={(event) => setLanguage(event.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="en-IN">English</option><option value="hi-IN">हिंदी / Hindi</option></select>
-          <button type="button" onClick={isListening ? stopListening : startListening} disabled={!isSupported} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white disabled:bg-slate-300 ${isListening ? 'bg-red-600' : 'bg-teal-600 hover:bg-teal-700'}`}>{isListening ? <Square size={18} /> : <Mic size={18} />}{isListening ? 'Stop listening' : 'Speak instead'}</button>
-          {extracting && <span className="self-center text-sm text-teal-700">Understanding your response…</span>}
+      {/* Voice or Text Input */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold text-slate-900">
+            {t('patientCheckIn.moodQuestion')}
+          </h2>
+          <button
+            type="button"
+            onClick={isListening ? stopListening : startListening}
+            disabled={!isSupported}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50 ${
+              isListening ? 'bg-red-600 text-white' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+            }`}
+          >
+            {isListening ? <Square size={14} /> : <Mic size={14} />}
+            {isListening ? t('patientCheckIn.stopListening') : t('patientCheckIn.tapToSpeak')}
+          </button>
         </div>
-        {!isSupported && <p className="text-sm text-amber-700 mb-3">Voice input is not supported in this browser. You can still type your response.</p>}
-        {voiceError && <p className="text-sm text-red-600 mb-3">{voiceError}</p>}
+
+        {extracting && (
+          <p className="text-xs font-semibold text-indigo-600 animate-pulse">
+            Analyzing speech...
+          </p>
+        )}
+
         <textarea
           value={formData.feelingDesc}
-          onChange={(e) => setFormData({...formData, feelingDesc: e.target.value})}
-          className="w-full p-4 border border-gray-300 rounded-xl text-lg min-h-[120px] focus:ring-teal-500 focus:border-teal-500"
-          placeholder="Describe how you are feeling today..."
+          onChange={(e) => setFormData({ ...formData, feelingDesc: e.target.value })}
+          className="w-full p-4 border border-slate-200 rounded-xl text-base min-h-[110px] focus:ring-2 focus:ring-indigo-500 focus:outline-none placeholder-slate-400"
+          placeholder={t('patientCheckIn.speakNaturally')}
         />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-        <h2 className="text-2xl font-semibold mb-4">Select any symptoms you're experiencing:</h2>
-        <div className="grid grid-cols-2 gap-4">
-          {SYMPTOMS.map(symptom => {
+      {/* Symptoms Multi-Select */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <h2 className="text-lg font-bold text-slate-900">
+          {t('patientCheckIn.selectSymptoms')}
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {SYMPTOMS.map((symptom) => {
             const isSelected = formData.symptoms.includes(symptom);
             return (
               <button
                 key={symptom}
+                type="button"
                 onClick={() => toggleSymptom(symptom)}
-                className={`p-4 rounded-xl border-2 text-lg font-medium transition-colors ${
-                  isSelected ? 'bg-teal-50 border-teal-500 text-teal-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                className={`p-3 rounded-xl border text-sm font-semibold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 {symptom}
@@ -231,122 +300,149 @@ export default function PatientCheckIn() {
         </div>
       </div>
 
+      {/* Symptom Details (Severity & Trend) */}
       {formData.symptoms.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <h2 className="text-2xl font-semibold mb-6">How bad are these symptoms?</h2>
-          {formData.symptoms.map(symptom => (
-            <div key={symptom} className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">{symptom}</h3>
-              
-              <p className="text-lg mb-2">Severity:</p>
-              <div className="flex gap-2 mb-4">
-                {['Mild', 'Moderate', 'Severe'].map(sev => (
-                  <button
-                    key={sev}
-                    onClick={() => updateSymptomDetail(symptom, 'severity', sev)}
-                    className={`flex-1 py-3 rounded-lg font-medium text-lg border ${
-                      symptomDetails[symptom]?.severity === sev 
-                        ? (sev === 'Mild' ? 'bg-green-100 border-green-500' : sev === 'Moderate' ? 'bg-amber-100 border-amber-500' : 'bg-red-100 border-red-500')
-                        : 'bg-white border-gray-300 text-gray-600'
-                    }`}
-                  >
-                    {sev}
-                  </button>
-                ))}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
+          <h2 className="text-lg font-bold text-slate-900">
+            {t('patientCheckIn.symptomsTitle')}
+          </h2>
+          {formData.symptoms.map((symptom) => (
+            <div key={symptom} className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
+              <h3 className="text-base font-bold text-slate-800">{symptom}</h3>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase">
+                  {t('patientCheckIn.severity')}:
+                </p>
+                <div className="flex gap-2">
+                  {['Mild', 'Moderate', 'Severe'].map((sev) => (
+                    <button
+                      key={sev}
+                      type="button"
+                      onClick={() => updateSymptomDetail(symptom, 'severity', sev)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                        symptomDetails[symptom]?.severity === sev
+                          ? (sev === 'Mild' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : sev === 'Moderate' ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-red-100 border-red-500 text-red-800')
+                          : 'bg-white border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {t(`patientCheckIn.${sev.toLowerCase()}`) || sev}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <p className="text-lg mb-2">Trend:</p>
-              <div className="flex gap-2">
-                {['Getting Better', 'Same', 'Getting Worse'].map(trend => (
-                  <button
-                    key={trend}
-                    onClick={() => updateSymptomDetail(symptom, 'trend', trend)}
-                    className={`flex-1 py-3 rounded-lg font-medium text-base border ${
-                      symptomDetails[symptom]?.trend === trend
-                        ? 'bg-blue-100 border-blue-500 text-blue-800'
-                        : 'bg-white border-gray-300 text-gray-600'
-                    }`}
-                  >
-                    {trend}
-                  </button>
-                ))}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase">
+                  {t('patientCheckIn.trend')}:
+                </p>
+                <div className="flex gap-2">
+                  {['Getting Better', 'Same', 'Getting Worse'].map((trend) => (
+                    <button
+                      key={trend}
+                      type="button"
+                      onClick={() => updateSymptomDetail(symptom, 'trend', trend)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                        symptomDetails[symptom]?.trend === trend
+                          ? 'bg-indigo-100 border-indigo-500 text-indigo-800'
+                          : 'bg-white border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {trend === 'Getting Better' ? t('patientCheckIn.gettingBetter') : trend === 'Getting Worse' ? t('patientCheckIn.gettingWorse') : t('patientCheckIn.same')}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-        <h2 className="text-2xl font-semibold mb-4">Did you take all your medicines today?</h2>
-        <div className="flex flex-col gap-3">
-          {['Yes', 'Partially', 'No'].map(opt => (
+      {/* Medication Adherence */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <h2 className="text-lg font-bold text-slate-900">
+          {t('patientCheckIn.medsTaken')}
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          {['Yes', 'Partially', 'No'].map((opt) => (
             <button
               key={opt}
-              onClick={() => setFormData({...formData, medsTaken: opt})}
-              className={`py-4 rounded-xl text-xl font-medium border-2 ${
+              type="button"
+              onClick={() => setFormData({ ...formData, medsTaken: opt })}
+              className={`py-3 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
                 formData.medsTaken === opt
-                  ? 'bg-teal-50 border-teal-500 text-teal-800'
-                  : 'bg-white border-gray-200 text-gray-700'
+                  ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {opt}
+              {opt === 'Yes' ? t('common.yes') : opt === 'No' ? t('common.no') : opt}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm mb-8 overflow-hidden">
-        <button 
+      {/* Optional Vitals Expandable Section */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <button
+          type="button"
           onClick={() => setShowVitals(!showVitals)}
-          className="w-full p-6 flex justify-between items-center text-left"
+          className="w-full p-5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors cursor-pointer"
         >
-          <h2 className="text-2xl font-semibold">Enter your vitals (Optional)</h2>
-          {showVitals ? <ChevronUp size={28} /> : <ChevronDown size={28} />}
+          <h2 className="text-lg font-bold text-slate-900">{t('patientCheckIn.vitalsTitle')}</h2>
+          {showVitals ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
         </button>
-        
+
         {showVitals && (
-          <div className="p-6 pt-0 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 pt-0 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-lg text-gray-700 mb-2">Oxygen (SpO2 %)</label>
-              <input 
-                type="number" 
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase">
+                {t('patientCheckIn.spo2')}
+              </label>
+              <input
+                type="number"
                 value={formData.vitals.spo2}
-                onChange={(e) => setFormData({...formData, vitals: {...formData.vitals, spo2: e.target.value}})}
-                className="w-full text-2xl p-4 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500" 
-                placeholder="98" 
+                onChange={(e) => setFormData({ ...formData, vitals: { ...formData.vitals, spo2: e.target.value } })}
+                className="w-full text-lg p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="98"
               />
             </div>
             <div>
-              <label className="block text-lg text-gray-700 mb-2">Heart Rate (bpm)</label>
-              <input 
-                type="number" 
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase">
+                {t('patientCheckIn.heartRate')}
+              </label>
+              <input
+                type="number"
                 value={formData.vitals.heartRate}
-                onChange={(e) => setFormData({...formData, vitals: {...formData.vitals, heartRate: e.target.value}})}
-                className="w-full text-2xl p-4 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500" 
-                placeholder="72" 
+                onChange={(e) => setFormData({ ...formData, vitals: { ...formData.vitals, heartRate: e.target.value } })}
+                className="w-full text-lg p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="72"
               />
             </div>
             <div>
-              <label className="block text-lg text-gray-700 mb-2">Temp (°F)</label>
-              <input 
-                type="number" 
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase">
+                {t('patientCheckIn.temperature')}
+              </label>
+              <input
+                type="number"
                 step="0.1"
                 value={formData.vitals.temperature}
-                onChange={(e) => setFormData({...formData, vitals: {...formData.vitals, temperature: e.target.value}})}
-                className="w-full text-2xl p-4 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500" 
-                placeholder="98.6" 
+                onChange={(e) => setFormData({ ...formData, vitals: { ...formData.vitals, temperature: e.target.value } })}
+                className="w-full text-lg p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="98.6"
               />
             </div>
           </div>
         )}
       </div>
 
+      {/* Submit Button */}
       <button
+        type="button"
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white text-2xl font-bold py-5 rounded-2xl shadow-lg disabled:opacity-70 transition-colors"
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 disabled:opacity-60 transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
       >
-        {loading ? 'Submitting...' : 'Submit Check-In'}
+        {loading ? t('patientCheckIn.submitting') : t('patientCheckIn.submitBtn')}
       </button>
     </div>
   );

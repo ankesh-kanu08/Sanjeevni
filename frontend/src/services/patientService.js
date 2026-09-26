@@ -48,7 +48,16 @@ const patientService = {
   updateLanguage: async (language) => {
     const response = await api.put('/patients/me/language', { language });
     return response.data;
+  },
+  processVoiceCheckInTurn: async (turnData) => {
+    const response = await api.post('/ai/voice-checkin/turn', turnData);
+    return response.data;
+  },
+  saveVoiceCheckInTurn: async (turnData) => {
+    const response = await api.post('/voice-checkins', turnData);
+    return response.data;
   }
 };
 
 export default patientService;
+

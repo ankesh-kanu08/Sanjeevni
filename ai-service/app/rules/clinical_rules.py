@@ -49,5 +49,22 @@ class ClinicalSafetyRules:
                     highest_level = "HIGH"
                 elif level == "MEDIUM" and highest_level == "LOW":
                     highest_level = "MEDIUM"
+
+        # Combined clinical deterioration rule:
+        # SpO2 drop >= 4 points AND (HR rise >= 10 bpm OR HR >= 95 bpm) AND worsening breathlessness => HIGH risk
+        spo2_dev = next((d for d in deviations if getattr(d, 'parameter', '') == 'spo2'), None)
+        hr_dev = next((d for d in deviations if getattr(d, 'parameter', '') == 'heartRate'), None)
+        has_worsening_breathlessness = any(s in symptoms for s in [
+            'increased_breathlessness', 'worsening_breathlessness', 'breathlessness_worsening', 'shortness_of_breath_worsening'
+        ])
+        
+        spo2_drop = abs(spo2_dev.change) if (spo2_dev and spo2_dev.change < 0) else 0
+        hr_rise = hr_dev.change if (hr_dev and hr_dev.change > 0) else 0
+        curr_spo2 = vitals_dict.get('spo2')
+        curr_hr = vitals_dict.get('heartRate')
+
+        if (spo2_drop >= 4 or (curr_spo2 is not None and curr_spo2 <= 92)) and has_worsening_breathlessness and (hr_rise >= 10 or (curr_hr is not None and curr_hr >= 95)):
+            reasons.append('Significant clinical deterioration: SpO₂ decrease with elevated heart rate and worsening breathlessness')
+            highest_level = "HIGH"
                     
         return {'risk_level': highest_level, 'reasons': reasons}

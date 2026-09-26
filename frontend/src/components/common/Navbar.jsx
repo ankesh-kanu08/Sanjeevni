@@ -44,35 +44,26 @@ const Navbar = ({ onMenuToggle }) => {
   };
 
   return (
-    <nav className="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-20 relative">
+    <nav className="bg-white border-b border-slate-100 h-20 flex items-center justify-between px-6 sm:px-8 z-20 relative">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuToggle}
-          className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 md:hidden focus:outline-none"
+          className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-50 md:hidden focus:outline-none"
         >
-          <Menu size={24} />
+          <Menu size={22} />
         </button>
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <Heart className="text-teal-600 fill-teal-600" size={26} />
-          <span className="text-teal-600 font-bold text-xl tracking-tight hidden sm:block">
-            Sanjeevni
-          </span>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 hidden lg:inline-block border border-teal-200">
-            Sanjeevni AI
-          </span>
-        </div>
       </div>
 
-      <div className="flex items-center gap-4 sm:gap-6">
+      <div className="flex items-center gap-3 sm:gap-5 ml-auto">
         {/* Live Socket Status Indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium">
+        <div className="flex items-center">
           {connected ? (
-            <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+            <span className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50/80 px-3.5 py-1.5 rounded-full border border-emerald-100/90 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
               {t('common.realtimeActive') || 'Real-time Active'}
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+            <span className="flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50/80 px-3.5 py-1.5 rounded-full border border-amber-100/90 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
               {t('common.reconnecting') || 'Reconnecting'}
             </span>
@@ -83,39 +74,41 @@ const Navbar = ({ onMenuToggle }) => {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="relative p-2 text-slate-600 hover:text-teal-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
-            title="Notifications"
+            className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-colors focus:outline-none"
+            title={t('common.notifications') || 'Notifications'}
           >
-            <Bell size={22} />
+            <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 bg-red-600 text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full ring-2 ring-white animate-pulse">
+              <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full ring-2 ring-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-100 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 pb-3 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Real-time Alerts</h3>
-                  <p className="text-xs text-slate-500">{unreadCount} unread alert{unreadCount !== 1 ? 's' : ''}</p>
+                  <h3 className="font-bold text-slate-800 text-sm">{t('common.notifications') || 'Real-time Alerts'}</h3>
+                  <p className="text-xs text-slate-500">
+                    {unreadCount === 1 ? t('common.unreadAlerts', { count: 1 }) : t('common.unreadAlertsPlural', { count: unreadCount })}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-xs text-teal-600 hover:text-teal-700 font-semibold flex items-center gap-1"
-                      title="Mark all as read"
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1"
+                      title={t('common.markAllRead')}
                     >
-                      <Check size={14} /> Read all
+                      <Check size={14} /> {t('common.markAllRead')}
                     </button>
                   )}
                   {notifications.length > 0 && (
                     <button
                       onClick={clearNotifications}
                       className="text-xs text-slate-400 hover:text-red-600 p-1"
-                      title="Clear all"
+                      title={t('common.clearAll')}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -126,16 +119,16 @@ const Navbar = ({ onMenuToggle }) => {
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                 {notifications.length === 0 ? (
                   <div className="py-8 text-center text-slate-400 text-sm">
-                    No active alerts right now
+                    {t('common.noNotifications') || 'No active alerts right now'}
                   </div>
                 ) : (
                   notifications.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => handleNotificationClick(item)}
-                      className={`p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${!item.read ? 'bg-teal-50/40' : ''}`}
+                      className={`p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${!item.read ? 'bg-indigo-50/30' : ''}`}
                     >
-                      <div className={`p-2 rounded-xl mt-0.5 ${item.riskLevel === 'HIGH' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                      <div className={`p-2 rounded-xl mt-0.5 ${item.riskLevel === 'HIGH' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
                         {item.riskLevel === 'HIGH' ? <ShieldAlert size={18} /> : <AlertTriangle size={18} />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -155,7 +148,7 @@ const Navbar = ({ onMenuToggle }) => {
                         </p>
                       </div>
                       {!item.read && (
-                        <span className="w-2 h-2 rounded-full bg-teal-600 self-center" />
+                        <span className="w-2 h-2 rounded-full bg-indigo-600 self-center" />
                       )}
                     </div>
                   ))
@@ -166,9 +159,9 @@ const Navbar = ({ onMenuToggle }) => {
                 <div className="px-4 pt-2 border-t border-slate-100 text-center">
                   <button
                     onClick={() => { setDropdownOpen(false); navigate('/doctor/alerts'); }}
-                    className="text-xs font-bold text-teal-700 hover:text-teal-900"
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
                   >
-                    View All Doctor Alerts →
+                    {t('common.viewAllAlerts') || 'View All Doctor Alerts →'}
                   </button>
                 </div>
               )}
@@ -179,20 +172,27 @@ const Navbar = ({ onMenuToggle }) => {
         {/* Multilingual Selector in Navbar */}
         <LanguageSelector compact={true} />
 
-        {/* User Badge and Logout */}
-        <div className="flex items-center gap-4 border-l border-slate-200 pl-4 sm:pl-6">
-          <div className="hidden md:flex flex-col items-end">
-            <span className="text-sm font-semibold text-slate-900">{user?.name || 'User'}</span>
-            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full mt-0.5 font-medium">
-              {user?.role ? capitalize(user.role.replace('_', ' ')) : ''}
+        {/* Dynamic User Profile Badge */}
+        <div className="flex items-center gap-3 pl-2 sm:pl-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs select-none">
+            {user?.name ? user.name.trim().charAt(0).toUpperCase() : 'U'}
+          </div>
+          <div className="hidden sm:flex flex-col text-left">
+            <span className="text-xs font-bold text-slate-900 leading-tight">
+              {user?.name || t('common.patient')}
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium leading-tight capitalize mt-0.5">
+              {user?.role ? (t(`common.${user.role.replace('_admin', 'Admin')}`) || capitalize(user.role.replace('_', ' '))) : ''}
             </span>
           </div>
+
+          {/* Logout Button */}
           <button
             onClick={logout}
-            className="text-slate-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50 focus:outline-none"
+            className="text-slate-400 hover:text-slate-700 transition-colors p-1.5 ml-1 rounded-lg hover:bg-slate-50 focus:outline-none"
             title={t('common.logout')}
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
           </button>
         </div>
       </div>

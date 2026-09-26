@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Calendar, AlertCircle, CheckCircle, WifiOff, RefreshCw, Radio } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
+import { useLanguage } from '../../context/LanguageContext';
 import useSocket from '../../hooks/useSocket';
 import workerService from '../../services/workerService';
 import RiskBadge from '../../components/common/RiskBadge';
@@ -9,6 +10,7 @@ import { useOfflineSync } from '../../utils/offlineSync';
 
 export default function WorkerDashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { socket } = useSocket();
   const navigate = useNavigate();
   const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();

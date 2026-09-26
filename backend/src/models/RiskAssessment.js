@@ -43,7 +43,7 @@ const riskAssessmentSchema = new mongoose.Schema({
   recommendedWorkflow: { type: String }, // Backward compatibility
   source: {
     type: String,
-    enum: ['PATIENT_CHECKIN', 'HEALTH_WORKER', 'SYSTEM', 'automated', 'manual', 'worker_visit'],
+    enum: ['PATIENT_CHECKIN', 'HEALTH_WORKER', 'SYSTEM', 'automated', 'manual', 'worker_visit', 'VOICE_CHECKIN'],
     default: 'SYSTEM'
   },
   triggeredBy: { type: String },

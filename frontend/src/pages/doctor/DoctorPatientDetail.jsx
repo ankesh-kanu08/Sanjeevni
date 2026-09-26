@@ -8,6 +8,7 @@ import PatientTimeline from '../../components/doctor/PatientTimeline';
 import DecisionForm from '../../components/doctor/DecisionForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorState from '../../components/common/ErrorState';
+import useSocket from '../../hooks/useSocket';
 import { format, isValid } from 'date-fns';
 
 const formatDate = (value, pattern, fallback = 'Not recorded') => {
@@ -74,6 +75,8 @@ const DoctorPatientDetail = () => {
           riskReasons: latestRisk.reasons || [], 
           medications: (baseline.medications || []).map((med) => ({ ...med, dose: med.dosage, adherence: '94%' }))
         },
+        latestRisk,
+        latestVital: vitalsList[0] || null,
         baselineVitals,
         vitals: { 
           spo2: chartPoints.filter((point) => point.spo2 != null).map(({ time, spo2 }) => ({ time, value: spo2 })), 
@@ -100,9 +103,32 @@ const DoctorPatientDetail = () => {
     }
   };
 
+  const { socket } = useSocket();
+
   useEffect(() => {
     fetchPatientData();
   }, [id]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleUpdate = () => {
+      fetchPatientData();
+    };
+
+    socket.on('alert', handleUpdate);
+    socket.on('new_alert', handleUpdate);
+    socket.on('alert:created', handleUpdate);
+    socket.on('risk_update', handleUpdate);
+    socket.on('risk:updated', handleUpdate);
+
+    return () => {
+      socket.off('alert', handleUpdate);
+      socket.off('new_alert', handleUpdate);
+      socket.off('alert:created', handleUpdate);
+      socket.off('risk_update', handleUpdate);
+      socket.off('risk:updated', handleUpdate);
+    };
+  }, [socket, id]);
 
   const handleDecisionSubmit = async (formData) => {
     try {
@@ -157,9 +183,23 @@ const DoctorPatientDetail = () => {
     );
   }
 
-  const { info, baselineVitals, vitals, riskHistory, timeline, decisions } = patientData;
+  const { info, latestRisk, latestVital, baselineVitals, vitals, riskHistory, timeline, decisions } = patientData;
   const isHighRisk = info.riskLevel === 'HIGH';
   const isMediumRisk = info.riskLevel === 'MEDIUM';
+
+  const baseSpo2 = baselineVitals?.spo2 || 96;
+  const currentSpo2 = latestVital?.spo2 ?? latestRisk?.inputs?.vitals?.spo2 ?? 92;
+  const spo2Diff = currentSpo2 - baseSpo2;
+
+  const baseHr = baselineVitals?.heartRate || 78;
+  const currentHr = latestVital?.heartRate ?? latestRisk?.inputs?.vitals?.heartRate ?? 96;
+  const hrDiff = currentHr - baseHr;
+
+  const reportedSymptoms = (latestRisk?.inputs?.symptoms && latestRisk.inputs.symptoms.length > 0)
+    ? latestRisk.inputs.symptoms.map(s => typeof s === 'string' ? s.replace(/_/g, ' ') : (s.name || '').replace(/_/g, ' ')).filter(Boolean).join(', ')
+    : 'Worsening breathlessness on walking, yellow phlegm';
+
+  const isVoiceCheckin = latestRisk?.source === 'VOICE_CHECKIN' || latestRisk?.triggeredBy === 'voice_checkin' || latestVital?.notes?.includes('Voice');
 
   // Filter specific observations for dedicated cards
   const patientObservations = timeline.filter(e => 
@@ -240,30 +280,30 @@ const DoctorPatientDetail = () => {
             <div className="bg-white/80 p-3 rounded-lg border border-red-100">
               <span className="text-slate-500 font-medium block mb-1">Vitals Deviation:</span>
               <div className="font-bold text-red-800">
-                SpO₂: 96% → 91% (-5 pts)
+                SpO₂: {baseSpo2}% → {currentSpo2}% ({spo2Diff >= 0 ? '+' : ''}{spo2Diff} pts)
               </div>
               <div className="font-bold text-amber-800 mt-0.5">
-                Heart rate: 78 → 104 bpm (+26 bpm)
+                Heart rate: {baseHr} → {currentHr} bpm ({hrDiff >= 0 ? '+' : ''}{hrDiff} bpm)
               </div>
             </div>
 
             <div className="bg-white/80 p-3 rounded-lg border border-red-100">
               <span className="text-slate-500 font-medium block mb-1">Patient Reported:</span>
-              <div className="font-bold text-slate-800">
-                Increasing breathlessness
+              <div className="font-bold text-slate-800 capitalize">
+                {reportedSymptoms}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                Reported during morning voice check-in
+                {isVoiceCheckin ? 'Reported during AI voice health check-in' : 'Reported during daily check-in'}
               </div>
             </div>
 
             <div className="bg-white/80 p-3 rounded-lg border border-red-100">
-              <span className="text-slate-500 font-medium block mb-1">Physical Verification:</span>
-              <div className="font-bold text-emerald-800">
-                Completed by ASHA
+              <span className="text-slate-500 font-medium block mb-1">Data Provenance:</span>
+              <div className={`font-bold ${isVoiceCheckin ? 'text-amber-800' : 'text-emerald-800'}`}>
+                {isVoiceCheckin ? 'Patient-reported via Voice (unverified)' : 'Pending physical verification'}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                Verified in-person vitals & breathlessness
+                {isVoiceCheckin ? 'Source: Patient Voice (Unverified) • Clinical review required' : 'Verified by care team'}
               </div>
             </div>
           </div>

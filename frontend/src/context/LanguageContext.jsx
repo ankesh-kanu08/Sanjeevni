@@ -44,6 +44,7 @@ export const LanguageProvider = ({ children }) => {
 
     setLanguageState(newLang);
     localStorage.setItem('sanjeevni_language', newLang);
+    localStorage.setItem('language', newLang);
     document.documentElement.lang = newLang;
 
     if (syncWithBackend) {

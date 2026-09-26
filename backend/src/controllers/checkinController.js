@@ -1,9 +1,11 @@
 import PatientCheckIn from '../models/PatientCheckIn.js';
 import Patient from '../models/Patient.js';
 import DischargeRecord from '../models/DischargeRecord.js';
+import VitalMeasurement from '../models/VitalMeasurement.js';
 import { assessRisk } from '../services/riskService.js';
 import { addEvent } from '../services/timelineService.js';
 import { extractSymptoms, fetchCheckInProtocol } from '../services/nlpService.js';
+
 
 export const submitCheckIn = async (req, res, next) => {
   try {
@@ -73,6 +75,25 @@ export const submitCheckIn = async (req, res, next) => {
 
     const checkin = await PatientCheckIn.create({ patient: patientId, ...payload });
     
+    // Persist vitals extracted during check-in into VitalMeasurement so clinical risk engine evaluates them
+    if (payload.vitals && (payload.vitals.spo2 != null || payload.vitals.heartRate != null || payload.vitals.temperature != null)) {
+      try {
+        await VitalMeasurement.create({
+          patient: patientId,
+          recordedBy: req.user?._id || patientDoc.user?._id,
+          source: 'patient',
+          spo2: payload.vitals.spo2,
+          heartRate: payload.vitals.heartRate,
+          temperature: payload.vitals.temperature,
+          bloodPressure: payload.vitals.bloodPressure,
+          respiratoryRate: payload.vitals.respiratoryRate,
+          notes: 'Recorded via AI Voice Health Check-in'
+        });
+      } catch (vitalErr) {
+        console.warn('Failed to persist checkin vitals:', vitalErr.message);
+      }
+    }
+
     await Patient.findByIdAndUpdate(patientId, { lastCheckIn: Date.now() });
 
     const eventDesc = payload.rawInput
@@ -82,6 +103,7 @@ export const submitCheckIn = async (req, res, next) => {
       : 'Patient submitted daily condition check-in';
 
     await addEvent(patientId, 'checkin', 'Patient Check-in', eventDesc, checkin, 'patient');
+
     
     // Trigger AI Risk Assessment (non-blocking so check-in never fails)
     try {

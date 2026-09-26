@@ -1,0 +1,80 @@
+﻿================================================================================
+SANJEEVNI (CAREWATCH) — COMPLETE TECHNOLOGY STACK
+AI-Powered Post-Discharge Patient Monitoring & Clinical Risk Assessment System
+================================================================================
+
+1. FRONTEND ARCHITECTURE
+--------------------------------------------------------------------------------
+• Core Framework          : React 18
+• Build Tool & Bundler    : Vite 5 (Lightning-fast HMR & optimized production bundling)
+• Routing                 : React Router DOM v6 (Role-based protected routes)
+• Styling System          : Tailwind CSS + PostCSS + Autoprefixer
+• UI Utilities            : clsx, tailwind-merge
+• Icons                   : Lucide React (Comprehensive medical & modern UI icon suite)
+• Charts & Data Viz       : Recharts (Real-time vitals trend lines, multi-axis risk monitoring)
+• Toast Notifications     : React Hot Toast (Real-time clinical alerts & status notifications)
+• HTTP & Networking       : Axios (Interceptors for JWT token refresh & API error handling)
+• Real-time Client        : Socket.io Client (Bi-directional real-time alert & vitals streaming)
+• Voice & Accessibility   : Web Speech API (Native browser STT SpeechRecognition & TTS SpeechSynthesis)
+• Multilingual Engine     : Custom multi-tier localization supporting 11 Indian Languages:
+                            Hindi (hi), English (en), Malayalam (ml), Bengali (bn),
+                            Marathi (mr), Telugu (te), Tamil (ta), Gujarati (gu),
+                            Kannada (kn), Punjabi (pa), Odia (or) with phonetic transliteration
+
+
+2. BACKEND API & GATEWAY (NODE.JS / EXPRESS)
+--------------------------------------------------------------------------------
+• Runtime Environment     : Node.js (ES Modules / ESM)
+• Web Server Framework    : Express.js v4.x
+• WebSocket Engine        : Socket.io v4.x (Live room-based clinical telemetry streaming)
+• Database ODM            : Mongoose v8.x
+• Authentication          : JSON Web Tokens (jsonwebtoken) + bcryptjs (Salted password hashing)
+• Security Middleware     : Helmet (HTTP security headers), CORS (Cross-Origin Resource Sharing),
+                            Express-Rate-Limit (DDoS & brute-force throttling)
+• Document Upload Engine  : Multer (In-memory buffer processing for PDF, JPG, PNG, WebP up to 10MB)
+• PDF Text Extraction     : pdf-parse (Server-side digital text stream extraction)
+• OCR Engine              : Tesseract.js (Optical Character Recognition for scanned reports & images)
+
+
+3. AI / ML MICROSERVICE (PYTHON / FASTAPI)
+--------------------------------------------------------------------------------
+• Language & Runtime      : Python 3.12+
+• API Framework           : FastAPI (Asynchronous, OpenAPI/Swagger auto-documented REST endpoints)
+• ASGI Server             : Uvicorn
+• Data Validation         : Pydantic v2 (Strict clinical discharge schemas & risk input validation)
+• Machine Learning Models : 
+    - XGBoost (Extreme Gradient Boosting classifier for patient decompensation & readmission risk)
+    - Scikit-learn (Preprocessing pipelines, RobustScaler, SimpleImputer)
+• Scientific Computing    : NumPy & Pandas (Feature vector matrix transformation & vitals rolling statistics)
+• Model Serialization     : Joblib
+• Clinical NLP Engine     : 
+    - ClinicalDocumentParser (Zero-hallucination deterministic medical regex & pattern parsing)
+    - Multilingual & Brand Medicine Normalizer (Indian & International pharmacotherapy)
+    - Clinical Unit Standardizer (Blood Pressure, Heart Rate, SpO2, Blood Sugar, Creatinine, etc.)
+
+
+4. DATABASE & CLOUD STORAGE
+--------------------------------------------------------------------------------
+• Database                : MongoDB Atlas (Cloud NoSQL distributed database)
+• ODM / Driver            : Mongoose v8
+• Primary Collections     :
+    - Users / Staff (Role-based access: Doctor, Nurse, Admin, Patient)
+    - Patients (Demographics, baseline conditions, contacts, assignees)
+    - Discharges (Clinical discharge notes, monitoring schedules, medication plans)
+    - VitalReadings (Time-series vitals streams with anomaly flags)
+    - Alerts (Multi-severity notifications: INFO, ELEVATED, CRITICAL)
+    - AuditLogs (Compliance & HIPAA-aligned audit trails)
+
+
+5. ARCHITECTURAL PATTERNS & PIPELINES
+--------------------------------------------------------------------------------
+• System Design           : Microservices Architecture (Node.js API Gateway + Python AI Engine)
+• Event-Driven Streaming  : Bi-directional WebSocket channels for instant hospital alert escalation
+• Zero-Hallucination Safe : Purely deterministic document parsing backed by Pydantic schema validation
+• Resilient Multi-Tier OCR: Digital PDF extraction -> High-accuracy Tesseract OCR -> Interactive conflict resolver
+• Offline-First Voice UI  : Browser-native Web Speech API with fallback synthetic audio prompts
+
+================================================================================
+Generated for: Sanjeevni (CareWatch) Healthcare Platform
+Date: September 2026
+================================================================================
